@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Rekap Invoice & Plafon Kesehatan RS Edelweiss - NFBS Lembang</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Library Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary-color: #0f5132; --secondary-color: #198754; --accent-color: #ffc107; --bg-light: #f8f9fa; }
+        * { box-sizing: border-box; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .sidebar { min-height: 100vh; background: linear-gradient(180deg, #0f5132 0%, #146c43 100%); color: white; box-shadow: 4px 0 10px rgba(0,0,0,0.1); position: fixed; top: 0; left: 0; z-index: 1050; width: 260px; overflow-y: auto; transition: transform 0.3s ease; }
+        .sidebar.show { transform: translateX(0); }
+        @media (min-width: 768px) { .sidebar { transform: translateX(0); } .sidebar-backdrop { display: none !important; } }
+        .sidebar-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1040; display: none; }
+        .sidebar-backdrop.show { display: block; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.85); border-radius: 8px; margin-bottom: 5px; transition: all 0.3s; cursor: pointer; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: white; background-color: rgba(255,255,255,0.15); transform: translateX(5px); }
+        .main-content { transition: margin-left 0.3s ease; }
+        @media (min-width: 768px) { .main-content { margin-left: 260px; } }
+        .card-stat { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card-stat:hover { transform: translateY(-3px); }
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 20px; }
+        .mobile-header { display: none; }
+        @media (max-width: 767.98px) { .mobile-header { display: flex; } }
+        .table-success th { vertical-align: middle; }
+        .toast-container { z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<div class="mobile-header position-fixed top-0 start-0 w-100 bg-success text-white p-2 d-md-none align-items-center justify-content-between shadow" style="z-index: 1030;">
+    <button class="btn btn-sm btn-outline-light" onclick="toggleSidebar()"><i class="fa-solid fa-bars fa-lg"></i></button>
+    <span class="fw-bold">Edelweiss Capital</span>
+    <span style="width: 32px;"></span>
+</div>
+
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+<nav id="sidebar" class="sidebar p-3 d-md-block">
+    <div class="text-center mb-4 mt-3">
+        <i class="fa-solid fa-hospital-user fa-3x text-warning mb-2"></i>
+        <h5 class="fw-bold">Edelweiss Capital</h5>
+        <p class="small text-white-50 mb-0">NFBS Lembang (Supabase)</p>
+    </div>
+    <hr class="text-white-50">
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link active" data-tab="dashboard" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie me-2"></i> Dashboard Eksekutif</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="master" onclick="switchTab('master')"><i class="fa-solid fa-sitemap me-2"></i> Data Master</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="database" onclick="switchTab('database')"><i class="fa-solid fa-database me-2"></i> Database Rujukan</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="plafon" onclick="switchTab('plafon')"><i class="fa-solid fa-shield-heart me-2"></i> Plafon Kesehatan SDM</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="cicilan" onclick="switchTab('cicilan')"><i class="fa-solid fa-hand-holding-dollar me-2"></i> Cicilan & Potongan</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="bidang" onclick="switchTab('bidang')"><i class="fa-solid fa-building-columns me-2"></i> Rekap per Bidang</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="sdm" onclick="switchTab('sdm')"><i class="fa-solid fa-users me-2"></i> Rekap per SDM</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="simulasi" onclick="switchTab('simulasi')"><i class="fa-solid fa-calculator me-2"></i> Simulasi Invoice</a></li>
+    </ul>
+    <div class="mt-auto pt-5 text-center small text-white-50">
+        <p>Sistem Periode:<br>Juli s/d Juni (Tahun Ajaran)<br><span class="text-warning"><i class="fa-solid fa-cloud-arrow-up"></i> Auto-Save to Cloud</span></p>
+    </div>
+</nav>
+
+<main class="main-content col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 pt-5 pt-md-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom gap-2">
+        <div>
+            <h1 class="h3 fw-bold text-success" id="page-title">Dashboard Eksekutif</h1>
+            <p class="text-muted mb-0">Monitoring Biaya Kesehatan & Plafon SDM (Juli - Juni)</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-white fw-bold"><i class="fa-solid fa-calendar-days me-1"></i> TA</span>
+                <select id="filterTahunAjaran" class="form-select fw-bold text-success" onchange="updateAllSystems()"><option value="SEMUA">Semua Tahun Ajaran</option></select>
+            </div>
+            <button type="button" class="btn btn-sm btn-warning" onclick="migrateLocalToSupabase()"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Migrasi Data ke Cloud</button>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="exportFullExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
+        </div>
+    </div>
+
+    <div id="tab-dashboard" class="content-section">
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6"><div class="card card-stat bg-white p-3 border-start border-success border-4"><div class="text-muted small fw-bold">TOTAL KUNJUNGAN</div><div class="h3 fw-bold text-dark mt-1" id="statKunjungan">0</div><div class="text-success small mt-1"><i class="fa-solid fa-user-injured me-1"></i> Rujukan Medis</div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="card card-stat bg-white p-3 border-start border-primary border-4"><div class="text-muted small fw-bold">TOTAL TAGIHAN NF</div><div class="h4 fw-bold text-dark mt-1" id="statTagihan">Rp 0</div><div class="text-primary small mt-1"><i class="fa-solid fa-file-invoice-dollar me-1"></i> Bruto Tagihan</div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="card card-stat bg-white p-3 border-start border-warning border-4"><div class="text-muted small fw-bold">TOTAL PEMBAYARAN</div><div class="h4 fw-bold text-dark mt-1" id="statSubTotal">Rp 0</div><div class="text-warning small mt-1"><i class="fa-solid fa-wallet me-1"></i> Setelah Diskon</div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="card card-stat bg-white p-3 border-start border-danger border-4"><div class="text-muted small fw-bold">TOTAL CICILAN AKTIF</div><div class="h4 fw-bold text-dark mt-1" id="statCicilanAktif">Rp 0</div><div class="text-danger small mt-1"><i class="fa-solid fa-hand-holding-dollar me-1"></i> Sisa Kewajiban</div></div></div>
+        </div>
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="card card-stat p-4 h-100">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-bar text-success me-2"></i> Analisis Tagihan per Tahun Ajaran <small class="text-muted fw-normal">(Klik batang grafik untuk rincian)</small></h5>
+                    <canvas id="tahunAjaranChart" height="140"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card card-stat p-4 h-100">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie text-success me-2"></i> Efisiensi Biaya <small class="text-muted fw-normal">(Klik untuk rincian)</small></h5>
+                    <canvas id="costRatioChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-master" class="content-section d-none">
+        <ul class="nav nav-pills mb-3" id="masterTab" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active fw-bold" id="pegawai-tab" data-bs-toggle="pill" data-bs-target="#pane-pegawai" type="button"><i class="fa-solid fa-users me-1"></i> Pegawai</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link fw-bold" id="bidang-tab" data-bs-toggle="pill" data-bs-target="#pane-bidang" type="button"><i class="fa-solid fa-layer-group me-1"></i> Bidang</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link fw-bold" id="dept-tab" data-bs-toggle="pill" data-bs-target="#pane-dept" type="button"><i class="fa-solid fa-building me-1"></i> Departemen</button></li>
+        </ul>
+        <div class="tab-content" id="masterTabContent">
+            <div class="tab-pane fade show active" id="pane-pegawai">
+                <div class="table-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="fw-bold m-0"><i class="fa-solid fa-users text-success me-2"></i> Data Master Pegawai</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterPegawai()"><i class="fa-solid fa-download me-1"></i> Template</button>
+                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterPegawaiFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterPegawaiExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
+                            <button class="btn btn-success btn-sm" onclick="openModalMasterPegawai('add')"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6"><input type="text" id="searchMasterPegawai" class="form-control form-control-sm" placeholder="Cari NIP, nama, bidang, atau departemen..." onkeyup="currentPageMasterPegawai=1; renderMasterPegawaiTable();"></div>
+                        <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="masterPegawaiPageSize" class="form-select form-select-sm" onchange="currentPageMasterPegawai=1; renderMasterPegawaiTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></div></div>
+                    </div>
+                    <div class="table-responsive" style="min-height: 350px;">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead class="table-success"><tr><th>No</th><th>NIP / ID</th><th>Nama Pegawai</th><th>Bidang</th><th>Departemen</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
+                            <tbody id="masterPegawaiTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="small text-muted" id="masterPegawaiPaginationInfo">Menampilkan data...</div>
+                        <ul class="pagination pagination-sm mb-0" id="masterPegawaiPaginationNav"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-bidang">
+                <div class="table-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="fw-bold m-0"><i class="fa-solid fa-layer-group text-success me-2"></i> Data Master Bidang</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterBidang()"><i class="fa-solid fa-download me-1"></i> Template</button>
+                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterBidangFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterBidangExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
+                            <button class="btn btn-success btn-sm" onclick="openModalMasterBidang()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Bidang</th><th class="text-center">Aksi</th></tr></thead><tbody id="masterBidangTableBody"></tbody></table>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-dept">
+                <div class="table-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="fw-bold m-0"><i class="fa-solid fa-building text-success me-2"></i> Data Master Departemen</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterDept()"><i class="fa-solid fa-download me-1"></i> Template</button>
+                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterDeptFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterDeptExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
+                            <button class="btn btn-success btn-sm" onclick="openModalMasterDept()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Departemen</th><th class="text-center">Aksi</th></tr></thead><tbody id="masterDeptTableBody"></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-database" class="content-section d-none">
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-database text-success me-2"></i> Database Rujukan & Invoice</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateDatabase()"><i class="fa-solid fa-download me-1"></i> Template</button>
+                    <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importDatabaseFile" accept=".xlsx, .xls, .csv" hidden></label>
+                    <button class="btn btn-success btn-sm" onclick="openModalDatabase('add')"><i class="fa-solid fa-plus me-1"></i> Tambah Data</button>
+                </div>
+            </div>
+            <div class="mb-3"><input type="text" id="searchDatabase" class="form-control" placeholder="Cari nama pegawai, pasien, atau no invoice..." onkeyup="filterDatabase()"></div>
+            <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                <table class="table table-striped table-hover align-middle small" id="tableDatabase">
+                    <thead class="table-success sticky-top"><tr><th>No</th><th>Pegawai</th><th>Bidang</th><th>Pasien</th><th>Poli</th><th>Tgl</th><th>TA</th><th>No Invoice</th><th>Tagihan NF</th><th>Sub Total</th><th>Cover Yayasan</th><th>Biaya Pribadi</th><th class="text-center">Aksi</th></tr></thead>
+                    <tbody id="dbTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-plafon" class="content-section d-none">
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-shield-heart text-success me-2"></i> Plafon Kesehatan Pegawai</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplatePlafon()"><i class="fa-solid fa-download me-1"></i> Template</button>
+                    <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importPlafonFile" accept=".xlsx, .xls, .csv" hidden></label>
+                    <button class="btn btn-success btn-sm" onclick="openModalPlafon()"><i class="fa-solid fa-plus me-1"></i> Set Plafon</button>
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-6"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
+                <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="plafonPageSize" class="form-select form-select-sm" onchange="currentPagePlafon=1; renderPlafonTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
+            </div>
+            <div class="table-responsive" style="min-height: 350px;">
+                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai</th><th>Bidang</th><th>Tahun Ajaran</th><th>Total Plafon</th><th>Terpakai</th><th>Sisa</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="plafonTableBody"></tbody></table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="small text-muted" id="plafonPaginationInfo">Menampilkan data...</div>
+                <ul class="pagination pagination-sm mb-0" id="plafonPaginationNav"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-cicilan" class="content-section d-none">
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-hand-holding-dollar text-success me-2"></i> Manajemen Cicilan & Potongan Pegawai</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm" onclick="openModalCicilan()"><i class="fa-solid fa-plus me-1"></i> Buat Kesepakatan Cicilan</button>
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-6"><input type="text" id="searchCicilan" class="form-control form-control-sm" placeholder="Cari nama pegawai..." onkeyup="currentPageCicilan=1; renderCicilanTable();"></div>
+                <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="cicilanPageSize" class="form-select form-select-sm" onchange="currentPageCicilan=1; renderCicilanTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
+            </div>
+            <div class="table-responsive" style="min-height: 350px;">
+                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai</th><th>Total Kewajiban</th><th>Sisa Tagihan</th><th>Skema</th><th>Metode</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="cicilanTableBody"></tbody></table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="small text-muted" id="cicilanPaginationInfo">Menampilkan data...</div>
+                <ul class="pagination pagination-sm mb-0" id="cicilanPaginationNav"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-bidang" class="content-section d-none">
+        <div class="table-container">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-building-columns text-success me-2"></i> Rekapitulasi per Bidang</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Bidang</th><th>Pegawai</th><th>Kunjungan</th><th>Tagihan NF</th><th>Sub Total</th></tr></thead><tbody id="bidangTableBody"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-sdm" class="content-section d-none">
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-users text-success me-2"></i> Rekapitulasi per Pegawai</h5>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <div class="input-group input-group-sm" style="width: 220px;"><span class="input-group-text bg-success text-white">TA</span><select id="filterSdmTa" class="form-select form-select-sm fw-bold text-success" onchange="currentPageSdm=1; renderSdmTable();"><option value="SEMUA">Semua</option></select></div>
+                    <div class="input-group input-group-sm" style="width: 120px;"><span class="input-group-text">Tampil</span><select id="sdmPageSize" class="form-select form-select-sm" onchange="currentPageSdm=1; renderSdmTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></div>
+                    <input type="text" id="searchSdm" class="form-control form-control-sm" style="width: 160px;" placeholder="Cari pegawai..." onkeyup="currentPageSdm=1; renderSdmTable();">
+                </div>
+            </div>
+            <div class="table-responsive" style="min-height: 350px;">
+                <table class="table table-striped table-hover align-middle" id="tableSdm">
+                    <thead class="table-success">
+                        <tr><th>No</th><th>Nama Pegawai</th><th>Bidang</th><th>Kunjungan</th><th>Tagihan NF</th><th>Sub Total</th><th>Cover Yayasan</th><th>Biaya Pribadi</th><th>Total Hutang</th><th>Status Hutang</th></tr>
+                    </thead>
+                    <tbody id="sdmTableBody"></tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="small text-muted" id="sdmPaginationInfo">Menampilkan data...</div>
+                <ul class="pagination pagination-sm mb-0" id="sdmPaginationNav"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-simulasi" class="content-section d-none">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card card-stat p-4">
+                    <h5 class="fw-bold mb-3 text-success"><i class="fa-solid fa-calculator me-2"></i> Simulasi Tagihan</h5>
+                    <div class="mb-3"><label class="form-label fw-bold">Tagihan Bruto (Tagihan NF):</label><input type="number" id="simTagihan" class="form-control" value="1000000" oninput="hitungSimulasi()"></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Diskon Khusus (%):</label><input type="number" id="simDiskon" class="form-control" value="10" oninput="hitungSimulasi()"></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Tanggungan BPJS / Subsidi (Rp):</label><input type="number" id="simBpjs" class="form-control" value="0" oninput="hitungSimulasi()"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-stat p-4 bg-success text-white h-100">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-file-invoice me-2"></i> Hasil Perhitungan</h5><hr>
+                    <div class="mb-3"><span class="small text-white-50">Tagihan Bruto:</span><h4 id="resTagihan" class="fw-bold">Rp 0</h4></div>
+                    <div class="mb-3"><span class="small text-white-50">Nominal Diskon:</span><h4 id="resDiskon" class="fw-bold">Rp 0</h4></div>
+                    <div class="mb-3"><span class="small text-white-50">Sub Total Pembayaran:</span><h2 id="resSubTotal" class="fw-bold text-warning">Rp 0</h2></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL DATABASE -->
+<div class="modal fade" id="modalDatabase" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalDatabaseTitle">Tambah Data Rujukan</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="formDatabase" onsubmit="saveDatabase(event)">
+                    <input type="hidden" id="dbIndex">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="dbPegawai" class="form-select" required onchange="autofillBidangPegawai()"><option value="">-- Pilih Pegawai --</option></select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" readonly required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pasien</label><input type="text" id="dbPasien" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Poli / Ruang</label><input type="text" id="dbPoli" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Tanggal Rujukan</label><input type="date" id="dbTanggal" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">No Invoice</label><input type="text" id="dbInvoice" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Tagihan NF (Rp)</label><input type="number" id="dbTagihan" class="form-control" required oninput="calcSubTotal()"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Diskon / Potongan (Rp)</label><input type="number" id="dbDiskon" class="form-control" value="0" oninput="calcSubTotalManual()"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Sub Total (Rp)</label><input type="number" id="dbSubtotal" class="form-control" readonly></div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Cover Yayasan (Rp)</label>
+                            <input type="number" id="dbCover" class="form-control" required oninput="calcBiayaPribadi()">
+                            <small class="text-muted">Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover yayasan.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Biaya Pribadi / Hutang (Rp)</label>
+                            <input type="number" id="dbPribadi" class="form-control" readonly>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL MASTER PEGAWAI -->
+<div class="modal fade" id="modalMasterPegawai" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalMasterPegawaiTitle">Tambah Pegawai</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="formMasterPegawai" onsubmit="saveMasterPegawai(event)">
+                    <input type="hidden" id="mpOriginalNip">
+                    <div class="mb-3"><label class="form-label fw-bold">NIP / ID Pegawai</label><input type="text" id="mpNip" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Nama Pegawai</label><input type="text" id="mpNama" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Bidang / Unit Kerja</label><select id="mpBidang" class="form-select" required></select></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Departemen</label><select id="mpDept" class="form-select" required></select></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Status Kepegawaian</label><select id="mpStatus" class="form-select"><option value="AKTIF">Aktif</option><option value="TIDAK AKTIF">Tidak Aktif</option></select></div>
+                    <div class="text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success">Simpan</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CICILAN -->
+<div class="modal fade" id="modalCicilan" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title">Buat Kesepakatan Cicilan Pegawai</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="formCicilan" onsubmit="saveCicilan(event)">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="cicPegawai" class="form-select" required onchange="updateKewajibanOtomatis()"></select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Tanggal Mulai / Kesepakatan</label><input type="date" id="cicTanggal" class="form-control" required></div>
+                        <div class="col-md-12"><label class="form-label fw-bold">Total Kewajiban (Rp) <span class="text-danger small">(Otomatis dari tagihan & plafon)</span></label><input type="number" id="cicTotal" class="form-control" required><div id="infoKewajiban" class="small text-muted mt-1"></div></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Skema Pembayaran</label><select id="cicSkema" class="form-select" onchange="toggleSkemaCicilan()"><option value="BULANAN">Cicilan Per Bulan (Fleksibel)</option><option value="LANGSUNG">Bayar Langsung Lunas (1x)</option></select></div>
+                        <div class="col-md-6" id="divTenor"><label class="form-label fw-bold">Estimasi Tenor (Bulan)</label><input type="number" id="cicTenor" class="form-control" value="1" min="1"><small class="text-muted">Hanya estimasi, nominal pembayaran per bulan dapat diatur fleksibel saat pencatatan.</small></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Metode Pembayaran</label><select id="cicMetode" class="form-select"><option value="POTONG PAYROLL">Potong Payroll Otomatis</option><option value="CASH">Bayar Cash / Transfer Manual</option></select></div>
+                        <div class="col-md-12"><label class="form-label fw-bold">Keterangan / Peruntukan</label><input type="text" id="cicKeterangan" class="form-control" placeholder="Misal: Hutang kelebihan plafon, pinjaman kesehatan, dll"></div>
+                    </div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan Kesepakatan</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CICILAN DETAIL & BAYAR -->
+<div class="modal fade" id="modalCicilanDetail" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalCicilanDetailTitle">Detail Cicilan & Riwayat Pembayaran</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row mb-3" id="cicilanDetailInfo"></div>
+                <hr>
+                <h6 class="fw-bold text-success mb-3"><i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran / Potongan Baru</h6>
+                <form class="row g-2 mb-4" onsubmit="bayarCicilan(event)">
+                    <input type="hidden" id="bayarCicilanId">
+                    <div class="col-md-4"><input type="date" id="bayarTanggal" class="form-control form-control-sm" required></div>
+                    <div class="col-md-4"><input type="number" id="bayarJumlah" class="form-control form-control-sm" placeholder="Nominal fleksibel (Rp)" required></div>
+                    <div class="col-md-3"><select id="bayarMetode" class="form-select form-select-sm"><option value="POTONG PAYROLL">Potong Payroll</option><option value="CASH">Cash / Transfer</option></select></div>
+                    <div class="col-md-1 d-grid"><button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-check"></i></button></div>
+                </form>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small"><thead class="table-success"><tr><th>No</th><th>Tanggal</th><th>Nominal</th><th>Metode</th><th class="text-center">Aksi</th></tr></thead><tbody id="cicilanRiwayatTableBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL VIEW -->
+<div class="modal fade" id="modalView" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title">Detail Rujukan</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" id="viewContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CHART DETAIL -->
+<div class="modal fade" id="modalChartDetail" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalChartDetailTitle">Rincian Data Grafik</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                    <table class="table table-striped table-hover align-middle small"><thead class="table-success sticky-top"><tr><th>No</th><th>Pegawai</th><th>Bidang</th><th>Pasien</th><th>Poli</th><th>Tanggal</th><th>TA</th><th>No Invoice</th><th>Tagihan NF</th><th>Sub Total</th><th>Pembiayaan</th></tr></thead><tbody id="chartDetailTableBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PLAFON DETAIL -->
+<div class="modal fade" id="modalPlafonDetail" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalPlafonDetailTitle">Riwayat Penggunaan Plafon</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><div class="table-responsive"><table class="table table-striped table-hover small"><thead class="table-success"><tr><th>No</th><th>Tanggal</th><th>No Invoice</th><th>Pasien</th><th>Poli</th><th>Cover Yayasan</th></tr></thead><tbody id="plafonDetailTableBody"></tbody></table></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL LOADING -->
+<div class="modal fade" id="modalLoading" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered justify-content-center">
+        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ===== SUPABASE INITIALIZATION =====
+const SUPABASE_URL = 'https://lvgpvcckwjllfmwglplb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2Z3B2Y2Nrd2psbGZtd2dscGxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NDY4OTAsImV4cCI6MjEwNjMyMjg5MH0.snYfqS3DG8GIXknwwDIJCB6h-a42LdfAKeJBVBlDEhE';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let dataMasterBidang = [];
+let dataMasterDept = [];
+let dataMasterPegawai = [];
+let dataDatabase = [];
+let dataPlafon = {};
+let dataCicilan = [];
+
+let tahunAjaranChartInstance = null;
+let costRatioChartInstance = null;
+let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, currentPageCicilan = 1;
+
+// ===== UTILITY FUNCTIONS =====
+function showLoading(show = true) {
+    if (show) { bootstrap.Modal.getOrCreateInstance(document.getElementById('modalLoading')).show(); }
+    else { bootstrap.Modal.getInstance(document.getElementById('modalLoading'))?.hide(); }
+}
+
+function showToast(message, type = 'success') {
+    const toastId = 'toast_' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : type === 'warning' ? 'bg-warning text-dark' : 'bg-primary';
+    const html = `<div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert"><div class="d-flex"><div class="toast-body"><i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'} me-2"></i> ${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+    document.getElementById('toastContainer').insertAdjacentHTML('beforeend', html);
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl, {delay: 3500});
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+
+function parseExcelDate(serial) {
+    if (!serial) return new Date().toISOString().split('T')[0];
+    if (typeof serial === 'string') {
+        let trimmed = serial.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) { let parts = trimmed.split('/'); return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`; }
+        let parsed = Date.parse(trimmed);
+        if (!isNaN(parsed)) return new Date(parsed).toISOString().split('T')[0];
+        return trimmed;
+    }
+    let num = Number(serial);
+    if (!isNaN(num) && num > 1000) { let utc_days = Math.floor(num - 25569); let date_info = new Date(utc_days * 86400 * 1000); return date_info.toISOString().split('T')[0]; }
+    return String(serial);
+}
+
+function cleanPegawaiName(rawName) {
+    if (!rawName) return "";
+    let name = String(rawName).trim().toUpperCase();
+    name = name.replace(/^(DR\.|DRS\.|DRA\.|IR\.|H\.|HJ\.|KIAI\s+|UST\.|PROF\.|KG\.|NENENG\s+)\s*/gi, '');
+    name = name.replace(/^(DR\.|DRS\.|DRA\.|IR\.|H\.|HJ\.|PROF\.)\s*/gi, '');
+    if (name.includes(',')) name = name.split(',')[0].trim();
+    let gelarBelakang = /\b(S\.PD|M\.PD|S\.SI|M\.SI|S\.KOM|M\.KOM|S\.E|M\.E|S\.HI|M\.HI|S\.AG|M\.AG|M\.M|M\.ADMIN|S\.KEP|NS|APT|SH|MH|MM|MAB|MBA|PHD|DR|LC|MA)\b\.?/gi;
+    name = name.replace(gelarBelakang, '').trim();
+    name = name.replace(/\s+/g, ' ').trim();
+    let matched = dataMasterPegawai.find(p => String(p.nama).trim() === name);
+    if (matched) return matched.nama;
+    let partialMatch = dataMasterPegawai.find(p => p.nama.includes(name) || (name.length > 3 && name.includes(p.nama)));
+    if (partialMatch) return partialMatch.nama;
+    return name;
+}
+
+function getTahunAjaran(tanggalStr) {
+    if (!tanggalStr) return "Unknown";
+    let date = new Date(tanggalStr);
+    if (isNaN(date.getTime())) return "Unknown";
+    let year = date.getFullYear();
+    let month = date.getMonth() + 1;
+    if (month >= 7) return `${year}/${year + 1}`;
+    return `${year - 1}/${year}`;
+}
+
+function formatRupiah(angka) { let num = Number(angka) || 0; return new Intl.NumberFormat('id-ID', {style: 'currency', currency: 'IDR', minimumFractionDigits: 0}).format(num); }
+function showModal(modalId) { bootstrap.Modal.getOrCreateInstance(document.getElementById(modalId)).show(); }
+function hideModal(modalId) { bootstrap.Modal.getInstance(document.getElementById(modalId))?.hide(); }
+function toggleSidebar() { const sidebar = document.getElementById('sidebar'); const backdrop = document.getElementById('sidebarBackdrop'); if (window.innerWidth < 768) { sidebar.classList.toggle('show'); backdrop.classList.toggle('show'); } }
+
+function switchTab(tabId) {
+    document.querySelectorAll('.content-section').forEach(el => el.classList.add('d-none'));
+    const target = document.getElementById('tab-' + tabId);
+    if (target) target.classList.remove('d-none');
+    document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
+    const activeLink = document.querySelector(`.sidebar .nav-link[data-tab="${tabId}"]`);
+    if (activeLink) activeLink.classList.add('active');
+    const titles = { 'dashboard': 'Dashboard Eksekutif', 'master': 'Data Master', 'database': 'Database Rujukan & Invoice', 'plafon': 'Plafon Kesehatan SDM', 'cicilan': 'Cicilan & Potongan Pegawai', 'bidang': 'Rekapitulasi per Bidang', 'sdm': 'Rekapitulasi per SDM', 'simulasi': 'Simulasi Kalkulator Invoice' };
+    document.getElementById('page-title').innerText = titles[tabId] || '';
+    if (tabId === 'sdm') renderSdmTable();
+    if (tabId === 'master') renderMasterAll();
+    if (tabId === 'plafon') renderPlafonTable();
+    if (tabId === 'cicilan') renderCicilanTable();
+    if (tabId === 'simulasi') hitungSimulasi();
+    if (window.innerWidth < 768) { document.getElementById('sidebar').classList.remove('show'); document.getElementById('sidebarBackdrop').classList.remove('show'); }
+}
+
+function populateTahunAjaranDropdown() {
+    let taSet = new Set();
+    dataDatabase.forEach(item => { let ta = getTahunAjaran(item.tanggal); if (ta !== "Unknown") taSet.add(ta); });
+    Object.values(dataPlafon).forEach(taObj => { if (taObj && typeof taObj === 'object') Object.keys(taObj).forEach(ta => taSet.add(ta)); });
+    let sortedTa = Array.from(taSet).sort();
+    let optionsHtml = '<option value="SEMUA">Semua Tahun Ajaran</option>';
+    sortedTa.forEach(ta => { optionsHtml += `<option value="${ta}">TA ${ta}</option>`; });
+    let mainSelect = document.getElementById('filterTahunAjaran');
+    let currentMainVal = mainSelect.value;
+    mainSelect.innerHTML = optionsHtml;
+    mainSelect.value = taSet.has(currentMainVal) ? currentMainVal : "SEMUA";
+    let sdmSelect = document.getElementById('filterSdmTa');
+    let currentSdmVal = sdmSelect.value;
+    sdmSelect.innerHTML = optionsHtml;
+    sdmSelect.value = taSet.has(currentSdmVal) ? currentSdmVal : "SEMUA";
+}
+
+function getFilteredData() { let selectedTa = document.getElementById('filterTahunAjaran').value; if (selectedTa === "SEMUA") return dataDatabase; return dataDatabase.filter(item => getTahunAjaran(item.tanggal) === selectedTa); }
+
+async function updateAllSystems() {
+    populateTahunAjaranDropdown();
+    let filtered = getFilteredData();
+    renderDatabaseTable(filtered); renderPlafonTable(); renderCicilanTable(); renderBidangTable(filtered); renderSdmTable(); updateDashboardSummary(filtered);
+    if (!document.getElementById('tab-master').classList.contains('d-none')) renderMasterAll();
+}
+
+function updateDashboardSummary(filteredData) {
+    let totalKunjungan = filteredData.length;
+    let totalTagihan = filteredData.reduce((sum, item) => sum + (Number(item.tagihan) || 0), 0);
+    let totalSubTotal = filteredData.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
+    let totalDiskon = totalTagihan - totalSubTotal;
+    let totalCicilanAktif = dataCicilan.filter(c => c.status === 'AKTIF').reduce((sum, c) => sum + (Number(c.sisa_kewajiban) || 0), 0);
+    document.getElementById('statKunjungan').innerHTML = `${totalKunjungan} <span class="small text-muted fs-6">Kasus</span>`;
+    document.getElementById('statTagihan').innerText = formatRupiah(totalTagihan);
+    document.getElementById('statSubTotal').innerText = formatRupiah(totalSubTotal);
+    document.getElementById('statCicilanAktif').innerText = formatRupiah(totalCicilanAktif);
+    updateCharts(totalSubTotal, totalDiskon);
+}
+
+function updateCharts(subTotal, diskon) {
+    let taMap = {};
+    dataDatabase.forEach(item => { let ta = getTahunAjaran(item.tanggal); if (ta !== "Unknown") taMap[ta] = (taMap[ta] || 0) + (Number(item.tagihan) || 0); });
+    let sortedTa = Object.keys(taMap).sort();
+    let taLabels = sortedTa.map(ta => `TA ${ta}`);
+    let taValues = sortedTa.map(ta => taMap[ta]);
+    const ctxTa = document.getElementById('tahunAjaranChart');
+    if (tahunAjaranChartInstance) tahunAjaranChartInstance.destroy();
+    tahunAjaranChartInstance = new Chart(ctxTa.getContext('2d'), {
+        type: 'bar',
+        data: { labels: taLabels.length ? taLabels : ['No Data'], datasets: [{ label: 'Total Tagihan NF (Rp)', data: taValues.length ? taValues : [0], backgroundColor: '#198754', borderRadius: 6 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Rp ' + (v/1000000) + ' Jt' } } }, onClick: (event, elements) => { if (elements.length > 0 && taLabels.length > 0) { showChartDetail(taLabels[elements[0].index].replace('TA ', '')); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
+    });
+
+    const ctxRatio = document.getElementById('costRatioChart');
+    if (costRatioChartInstance) costRatioChartInstance.destroy();
+    costRatioChartInstance = new Chart(ctxRatio.getContext('2d'), {
+        type: 'doughnut', data: { labels: ['Sub Total', 'Diskon'], datasets: [{ data: [subTotal || 1, diskon || 0], backgroundColor: ['#198754', '#ffc107'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } }, onClick: (event, elements) => { if (elements.length > 0) { showChartDetail(null); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
+    });
+}
+
+function showChartDetail(specificTa = null) {
+    document.getElementById('modalChartDetailTitle').innerText = specificTa ? `Rincian Data Tahun Ajaran ${specificTa}` : `Rincian Data (Sesuai Filter Global)`;
+    let dataToShow = specificTa ? dataDatabase.filter(item => getTahunAjaran(item.tanggal) === specificTa) : getFilteredData();
+    let html = '', totalTagihan = 0, totalSubTotal = 0;
+    dataToShow.forEach((item, index) => {
+        totalTagihan += Number(item.tagihan) || 0;
+        totalSubTotal += Number(item.subtotal) || 0;
+        let cover = Number(item.cover_yayasan) || 0;
+        let pribadi = Number(item.biaya_pribadi) || 0;
+        let badgeKet = cover > 0 && pribadi > 0 ? `<span class="badge bg-success">Y: ${formatRupiah(cover)}</span> <span class="badge bg-warning text-dark">P: ${formatRupiah(pribadi)}</span>` : cover > 0 ? `<span class="badge bg-success">Yayasan: ${formatRupiah(cover)}</span>` : `<span class="badge bg-warning text-dark">Pribadi: ${formatRupiah(pribadi)}</span>`;
+        html += `<tr><td>${index + 1}</td><td class="fw-bold">${item.pegawai}</td><td><span class="badge bg-secondary">${item.bidang}</span></td><td>${item.pasien}</td><td>${item.poli}</td><td>${parseExcelDate(item.tanggal)}</td><td><span class="badge bg-primary">${getTahunAjaran(item.tanggal)}</span></td><td><code>${item.no_invoice}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${badgeKet}</td></tr>`;
+    });
+    if (dataToShow.length === 0) html = `<tr><td colspan="11" class="text-center text-muted">Tidak ada data</td></tr>`;
+    else html += `<tr class="table-success fw-bold"><td colspan="8" class="text-end">Total Keseluruhan:</td><td>${formatRupiah(totalTagihan)}</td><td class="text-success">${formatRupiah(totalSubTotal)}</td><td></td></tr>`;
+    document.getElementById('chartDetailTableBody').innerHTML = html;
+    showModal('modalChartDetail');
+}
+
+function renderMasterAll() { renderMasterPegawaiTable(); renderMasterBidangTable(); renderMasterDeptTable(); }
+
+function renderMasterPegawaiTable() {
+    let searchKeyword = (document.getElementById('searchMasterPegawai')?.value || '').toLowerCase();
+    let filteredPegawai = dataMasterPegawai.filter(p => (String(p.nip || '').toLowerCase().includes(searchKeyword)) || (String(p.nama || '').toLowerCase().includes(searchKeyword)) || (String(p.bidang || '').toLowerCase().includes(searchKeyword)) || (String(p.departemen || '').toLowerCase().includes(searchKeyword)));
+    let pageSize = parseInt(document.getElementById('masterPegawaiPageSize')?.value) || 15;
+    let totalRows = filteredPegawai.length, totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPageMasterPegawai > totalPages) currentPageMasterPegawai = totalPages;
+    if (currentPageMasterPegawai < 1) currentPageMasterPegawai = 1;
+    let startIndex = (currentPageMasterPegawai - 1) * pageSize;
+    let paginatedData = filteredPegawai.slice(startIndex, startIndex + pageSize);
+    let html = '';
+    paginatedData.forEach((p, index) => {
+        let rowNumber = startIndex + index + 1;
+        html += `<tr><td>${rowNumber}</td><td><code>${p.nip}</code></td><td class="fw-bold">${p.nama}</td><td><span class="badge bg-secondary">${p.bidang || '-'}</span></td><td>${p.departemen || '-'}</td><td><span class="badge ${p.status === 'AKTIF' ? 'bg-success' : 'bg-danger'}">${p.status}</span></td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning" onclick="openModalMasterPegawai('edit','${p.nip}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterPegawai('${p.nip}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+    });
+    document.getElementById('masterPegawaiTableBody').innerHTML = html || `<tr><td colspan="7" class="text-center text-muted">Tidak ada data</td></tr>`;
+    let endRecord = Math.min(startIndex + pageSize, totalRows);
+    document.getElementById('masterPegawaiPaginationInfo').innerText = `Menampilkan ${totalRows > 0 ? startIndex + 1 : 0} - ${endRecord} dari ${totalRows} data`;
+    let navHtml = `<li class="page-item ${currentPageMasterPegawai === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changeMasterPegawaiPage(${currentPageMasterPegawai - 1})">Prev</a></li>`;
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPageMasterPegawai - 1 && i <= currentPageMasterPegawai + 1)) { navHtml += `<li class="page-item ${currentPageMasterPegawai === i ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changeMasterPegawaiPage(${i})">${i}</a></li>`; } }
+    navHtml += `<li class="page-item ${currentPageMasterPegawai === totalPages || totalPages === 0 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changeMasterPegawaiPage(${currentPageMasterPegawai + 1})">Next</a></li>`;
+    document.getElementById('masterPegawaiPaginationNav').innerHTML = navHtml;
+}
+function changeMasterPegawaiPage(page) { currentPageMasterPegawai = page; renderMasterPegawaiTable(); }
+function renderMasterBidangTable() { let html = ''; dataMasterBidang.forEach((b, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${b.nama_bidang}</td><td class="text-center"><button class="btn btn-sm btn-warning" onclick="editMasterBidang('${b.nama_bidang}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterBidang('${b.nama_bidang}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterBidangTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
+function renderMasterDeptTable() { let html = ''; dataMasterDept.forEach((d, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${d.nama_departemen}</td><td class="text-center"><button class="btn btn-sm btn-warning" onclick="editMasterDept('${d.nama_departemen}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterDept('${d.nama_departemen}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterDeptTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
+
+function downloadTemplateMasterPegawai() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NIP: "EMP001", NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", DEPARTEMEN: "YAYASAN", STATUS: "AKTIF"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Pegawai"); XLSX.writeFile(wb, "Template_Import_Pegawai.xlsx"); showToast('Template berhasil diunduh!'); }
+function exportMasterPegawaiExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterPegawai.map(p => ({NIP: p.nip, NAMA_PEGAWAI: p.nama, BIDANG: p.bidang, DEPARTEMEN: p.departemen, STATUS: p.status}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Pegawai"); XLSX.writeFile(wb, "Data_Master_Pegawai.xlsx"); }
+
+async function importMasterPegawaiExcel(event) {
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            if (typeof XLSX === 'undefined') throw new Error("Library XLSX tidak ditemukan");
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            if (json.length > 0) {
+                if (!confirm(`Akan mengimpor ${json.length} data pegawai. Data lama akan ditimpa. Lanjutkan?`)) { event.target.value = ''; return; }
+                showLoading(true);
+                await db.from('master_pegawai').delete().neq('nip', 'xxx');
+                let insertData = json.map(row => {
+                    let keys = Object.keys(row).reduce((acc, k) => { acc[k.trim().toUpperCase()] = row[k]; return acc; }, {});
+                    return { nip: String(keys.NIP || 'EMP' + Date.now()), nama: cleanPegawaiName(keys.NAMA_PEGAWAI || keys.NAMA || ''), bidang: String(keys.BIDANG || 'UMUM').toUpperCase(), departemen: String(keys.DEPARTEMEN || keys.DEPT || 'UMUM').toUpperCase(), status: String(keys.STATUS || 'AKTIF').toUpperCase() };
+                });
+                const { error } = await db.from('master_pegawai').insert(insertData);
+                if (error) throw error;
+                await loadInitialData();
+                showToast(`Berhasil mengimpor ${insertData.length} data pegawai!`);
+            } else { showToast('File kosong atau format tidak sesuai.', 'warning'); }
+        } catch (err) { showToast('Gagal mengimpor file Excel: ' + err.message, 'danger'); }
+        showLoading(false); event.target.value = '';
+    }; reader.readAsArrayBuffer(file);
+}
+function downloadTemplateMasterBidang() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_BIDANG: "CONTOH BIDANG"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Bidang"); XLSX.writeFile(wb, "Template_Import_Bidang.xlsx"); showToast('Template berhasil diunduh!'); }
+function exportMasterBidangExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterBidang.map(b => ({NAMA_BIDANG: b.nama_bidang}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Bidang"); XLSX.writeFile(wb, "Data_Master_Bidang.xlsx"); }
+async function importMasterBidangExcel(event) {
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            if (typeof XLSX === 'undefined') throw new Error("Library XLSX tidak ditemukan");
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            if (json.length > 0) {
+                showLoading(true);
+                let imported = json.map(row => { let keys = Object.keys(row).reduce((acc, k) => { acc[k.trim().toUpperCase()] = row[k]; return acc; }, {}); return { nama_bidang: String(keys.NAMA_BIDANG || keys.BIDANG || '').toUpperCase() }; }).filter(b => b.nama_bidang);
+                const { error } = await db.from('master_bidang').upsert(imported, { onConflict: 'nama_bidang' });
+                if (error) throw error;
+                await loadInitialData();
+                showToast(`Berhasil mengimpor data bidang!`);
+            }
+        } catch(err) { showToast('Gagal membaca file bidang: ' + err.message, 'danger'); }
+        showLoading(false); event.target.value = '';
+    }; reader.readAsArrayBuffer(file);
+}
+function downloadTemplateMasterDept() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_DEPARTEMEN: "CONTOH DEPARTEMEN"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Departemen"); XLSX.writeFile(wb, "Template_Import_Departemen.xlsx"); showToast('Template berhasil diunduh!'); }
+function exportMasterDeptExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterDept.map(d => ({NAMA_DEPARTEMEN: d.nama_departemen}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Departemen"); XLSX.writeFile(wb, "Data_Master_Departemen.xlsx"); }
+async function importMasterDeptExcel(event) {
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            if (typeof XLSX === 'undefined') throw new Error("Library XLSX tidak ditemukan");
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            if (json.length > 0) {
+                showLoading(true);
+                let imported = json.map(row => { let keys = Object.keys(row).reduce((acc, k) => { acc[k.trim().toUpperCase()] = row[k]; return acc; }, {}); return { nama_departemen: String(keys.NAMA_DEPARTEMEN || keys.DEPARTEMEN || '').toUpperCase() }; }).filter(d => d.nama_departemen);
+                const { error } = await db.from('master_departemen').upsert(imported, { onConflict: 'nama_departemen' });
+                if (error) throw error;
+                await loadInitialData();
+                showToast(`Berhasil mengimpor data departemen!`);
+            }
+        } catch(err) { showToast('Gagal membaca file departemen: ' + err.message, 'danger'); }
+        showLoading(false); event.target.value = '';
+    }; reader.readAsArrayBuffer(file);
+}
+
+function openModalMasterPegawai(mode, nipKey = null) {
+    let bidangOpt = ''; dataMasterBidang.forEach(b => bidangOpt += `<option value="${b.nama_bidang.trim()}">${b.nama_bidang.trim()}</option>`); document.getElementById('mpBidang').innerHTML = bidangOpt;
+    let deptOpt = ''; dataMasterDept.forEach(d => deptOpt += `<option value="${d.nama_departemen.trim()}">${d.nama_departemen.trim()}</option>`); document.getElementById('mpDept').innerHTML = deptOpt;
+    document.getElementById('formMasterPegawai').reset();
+    if (mode === 'add') { document.getElementById('modalMasterPegawaiTitle').innerText = "Tambah Pegawai Baru"; document.getElementById('mpOriginalNip').value = ''; }
+    else { document.getElementById('modalMasterPegawaiTitle').innerText = "Edit Data Pegawai"; let p = dataMasterPegawai.find(x => x.nip === nipKey); if (p) { document.getElementById('mpOriginalNip').value = p.nip; document.getElementById('mpNip').value = p.nip; document.getElementById('mpNama').value = p.nama; document.getElementById('mpBidang').value = p.bidang; document.getElementById('mpDept').value = p.departemen; document.getElementById('mpStatus').value = p.status; } }
+    showModal('modalMasterPegawai');
+}
+
+async function saveMasterPegawai(event) {
+    event.preventDefault();
+    let origNip = document.getElementById('mpOriginalNip').value;
+    let nip = document.getElementById('mpNip').value.trim().toUpperCase();
+    let nama = cleanPegawaiName(document.getElementById('mpNama').value);
+    let bidang = document.getElementById('mpBidang').value;
+    let departemen = document.getElementById('mpDept').value;
+    let status = document.getElementById('mpStatus').value;
+    if (!nip || !nama) { showToast('NIP dan Nama wajib diisi!', 'warning'); return; }
+
+    showLoading(true);
+    try {
+        if (origNip === '') {
+            const { error } = await db.from('master_pegawai').insert({ nip, nama, bidang, departemen, status });
+            if (error) throw error;
+        } else {
+            const { error } = await db.from('master_pegawai').update({ nip, nama, bidang, departemen, status }).eq('nip', origNip);
+            if (error) throw error;
+        }
+        await loadInitialData();
+        hideModal('modalMasterPegawai');
+        showToast('Data Pegawai berhasil disimpan!');
+    } catch (err) {
+        showToast('Error: ' + err.message, 'danger');
+    }
+    showLoading(false);
+}
+
+async function deleteMasterPegawai(nip) {
+    if (confirm(`Yakin ingin menghapus pegawai NIP ${nip}?`)) {
+        showLoading(true);
+        const { error } = await db.from('master_pegawai').delete().eq('nip', nip);
+        if (error) { showToast('Error: ' + error.message, 'danger'); }
+        else { await loadInitialData(); showToast('Pegawai berhasil dihapus.'); }
+        showLoading(false);
+    }
+}
+async function openModalMasterBidang() {
+    let nama = prompt("Masukkan Nama Bidang Baru:");
+    if (nama) {
+        let fn = nama.trim().toUpperCase();
+        if (!dataMasterBidang.find(b => b.nama_bidang === fn)) {
+            showLoading(true);
+            const { error } = await db.from('master_bidang').insert({ nama_bidang: fn });
+            if (error) showToast('Error: ' + error.message, 'danger');
+            else { await loadInitialData(); showToast(`Bidang ${fn} ditambahkan!`); }
+            showLoading(false);
+        } else showToast('Bidang sudah ada.', 'warning');
+    }
+}
+async function editMasterBidang(oldName) {
+    let nb = prompt(`Ubah Bidang "${oldName}" menjadi:`, oldName);
+    if (nb) {
+        let fn = nb.trim().toUpperCase();
+        showLoading(true);
+        // Update tabel master_bidang
+        const { error } = await db.from('master_bidang').update({ nama_bidang: fn }).eq('nama_bidang', oldName);
+        if (error) { showToast('Error: ' + error.message, 'danger'); }
+        else {
+            // Update relasi di master_pegawai dan database_rujukan
+            await db.from('master_pegawai').update({ bidang: fn }).eq('bidang', oldName);
+            await db.from('database_rujukan').update({ bidang: fn }).eq('bidang', oldName);
+            await loadInitialData();
+            showToast(`Bidang diubah menjadi ${fn}!`);
+        }
+        showLoading(false);
+    }
+}
+async function deleteMasterBidang(b) {
+    if (confirm(`Yakin hapus bidang "${b}"?`)) {
+        showLoading(true);
+        const { error } = await db.from('master_bidang').delete().eq('nama_bidang', b);
+        if (error) { showToast('Error: ' + error.message, 'danger'); }
+        else { await loadInitialData(); showToast('Bidang dihapus.'); }
+        showLoading(false);
+    }
+}
+async function openModalMasterDept() {
+    let nama = prompt("Masukkan Nama Departemen Baru:");
+    if (nama) {
+        let fn = nama.trim().toUpperCase();
+        if (!dataMasterDept.find(d => d.nama_departemen === fn)) {
+            showLoading(true);
+            const { error } = await db.from('master_departemen').insert({ nama_departemen: fn });
+            if (error) showToast('Error: ' + error.message, 'danger');
+            else { await loadInitialData(); showToast(`Departemen ${fn} ditambahkan!`); }
+            showLoading(false);
+        } else showToast('Departemen sudah ada.', 'warning');
+    }
+}
+async function editMasterDept(oldName) {
+    let nb = prompt(`Ubah Departemen "${oldName}" menjadi:`, oldName);
+    if (nb) {
+        let fn = nb.trim().toUpperCase();
+        showLoading(true);
+        const { error } = await db.from('master_departemen').update({ nama_departemen: fn }).eq('nama_departemen', oldName);
+        if (error) { showToast('Error: ' + error.message, 'danger'); }
+        else {
+            await db.from('master_pegawai').update({ departemen: fn }).eq('departemen', oldName);
+            await loadInitialData();
+            showToast(`Departemen diubah menjadi ${fn}!`);
+        }
+        showLoading(false);
+    }
+}
+async function deleteMasterDept(d) {
+    if (confirm(`Yakin hapus departemen "${d}"?`)) {
+        showLoading(true);
+        const { error } = await db.from('master_departemen').delete().eq('nama_departemen', d);
+        if (error) { showToast('Error: ' + error.message, 'danger'); }
+        else { await loadInitialData(); showToast('Departemen dihapus.'); }
+        showLoading(false);
+    }
+}
+
+// ===== DATABASE RUJUKAN =====
+function renderDatabaseTable(data) {
+    let html = '';
+    data.forEach((item, index) => {
+        let realIndex = dataDatabase.indexOf(item);
+        if (realIndex === -1) return;
+        let cover = Number(item.cover_yayasan) || 0;
+        let pribadi = Number(item.biaya_pribadi) || 0;
+        let badgeKet = cover > 0 && pribadi > 0 ? `<span class="badge bg-success">Y: ${formatRupiah(cover)}</span> <span class="badge bg-warning text-dark">P: ${formatRupiah(pribadi)}</span>` : cover > 0 ? `<span class="badge bg-success">${formatRupiah(cover)}</span>` : `<span class="badge bg-warning text-dark">${formatRupiah(pribadi)}</span>`;
+        let formattedDate = parseExcelDate(item.tanggal);
+        let ta = getTahunAjaran(formattedDate);
+        html += `<tr><td>${index + 1}</td><td class="fw-bold">${item.pegawai}</td><td><span class="badge bg-secondary">${item.bidang || '-'}</span></td><td>${item.pasien}</td><td>${item.poli}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${item.no_invoice}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseByIndex(${realIndex})" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning" onclick="openModalDatabase('edit', ${realIndex})" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteDatabaseByIndex(${realIndex})" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+    });
+    document.getElementById('dbTableBody').innerHTML = html || `<tr><td colspan="13" class="text-center text-muted">Belum ada data rujukan</td></tr>`;
+}
+
+function openModalDatabase(mode, indexKey = null) {
+    let dbPegawaiSelect = document.getElementById('dbPegawai');
+    dbPegawaiSelect.innerHTML = '<option value="">-- Pilih Pegawai --</option>';
+    dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { let opt = document.createElement('option'); let cleanNama = String(p.nama || '').trim(); opt.value = cleanNama; opt.text = `${cleanNama} (${p.bidang})`; dbPegawaiSelect.add(opt); });
+    document.getElementById('formDatabase').reset();
+    if (mode === 'add') { document.getElementById('modalDatabaseTitle').innerText = "Tambah Data Rujukan"; document.getElementById('dbIndex').value = ''; document.getElementById('dbTanggal').value = new Date().toISOString().split('T')[0]; document.getElementById('dbTagihan').value = 0; calcSubTotal(); }
+    else {
+        document.getElementById('modalDatabaseTitle').innerText = "Edit Data Rujukan";
+        let realIndex = parseInt(indexKey);
+        if (isNaN(realIndex) || realIndex < 0 || realIndex >= dataDatabase.length) { showToast('Data tidak ditemukan!', 'danger'); return; }
+        document.getElementById('dbIndex').value = realIndex;
+        let item = dataDatabase[realIndex];
+        let pegawaiName = String(item.pegawai || '').trim();
+        let existsInDropdown = Array.from(dbPegawaiSelect.options).some(opt => opt.value === pegawaiName);
+        if (!existsInDropdown && pegawaiName !== "") { let opt = document.createElement('option'); opt.value = pegawaiName; opt.text = `${pegawaiName} (${item.bidang})`; dbPegawaiSelect.add(opt); }
+        dbPegawaiSelect.value = pegawaiName;
+        document.getElementById('dbBidang').value = item.bidang;
+        document.getElementById('dbPasien').value = item.pasien;
+        document.getElementById('dbPoli').value = item.poli;
+        document.getElementById('dbTanggal').value = parseExcelDate(item.tanggal);
+        document.getElementById('dbInvoice').value = item.no_invoice;
+        document.getElementById('dbTagihan').value = item.tagihan;
+        document.getElementById('dbDiskon').value = (Number(item.tagihan) || 0) - (Number(item.subtotal) || 0);
+        document.getElementById('dbSubtotal').value = item.subtotal;
+        document.getElementById('dbCover').value = Number(item.cover_yayasan) || 0;
+        calcBiayaPribadi();
+    }
+    showModal('modalDatabase');
+}
+function autofillBidangPegawai() { let namaPegawai = document.getElementById('dbPegawai').value.trim(); let pegawaiObj = dataMasterPegawai.find(p => String(p.nama).trim() === namaPegawai); document.getElementById('dbBidang').value = pegawaiObj ? pegawaiObj.bidang : ''; }
+function calcSubTotal() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = tagihan * 0.10; document.getElementById('dbDiskon').value = diskon; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; document.getElementById('dbCover').value = subtotal; calcBiayaPribadi(); }
+function calcSubTotalManual() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = parseFloat(document.getElementById('dbDiskon').value) || 0; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; let currentCover = parseFloat(document.getElementById('dbCover').value) || 0; if (currentCover === 0 || currentCover > subtotal) { document.getElementById('dbCover').value = subtotal; } calcBiayaPribadi(); }
+function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let cover = parseFloat(document.getElementById('dbCover').value) || 0; if (cover > subtotal) cover = subtotal; if (cover < 0) cover = 0; let pribadi = subtotal - cover; document.getElementById('dbCover').value = cover; document.getElementById('dbPribadi').value = pribadi; }
+async function saveDatabase(event) {
+    event.preventDefault();
+    let index = document.getElementById('dbIndex').value;
+    let pegawai = document.getElementById('dbPegawai').value.trim();
+    let bidang = document.getElementById('dbBidang').value.trim();
+    let tagihanBruto = parseFloat(document.getElementById('dbTagihan').value) || 0;
+    let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0;
+    let cover = parseFloat(document.getElementById('dbCover').value) || 0;
+    let pribadi = parseFloat(document.getElementById('dbPribadi').value) || 0;
+    let invoice = document.getElementById('dbInvoice').value.trim().toUpperCase();
+    if (!pegawai || !bidang || !invoice) { showToast('Semua field wajib diisi!', 'warning'); return; }
+
+    let payload = {
+        no_invoice: invoice, pegawai, bidang,
+        pasien: document.getElementById('dbPasien').value.toUpperCase(),
+        poli: document.getElementById('dbPoli').value.toUpperCase(),
+        tanggal: document.getElementById('dbTanggal').value,
+        tagihan: tagihanBruto, diskon: tagihanBruto - subtotal, subtotal: subtotal,
+        cover_yayasan: cover, biaya_pribadi: pribadi
+    };
+
+    showLoading(true);
+    try {
+        if (index === '') {
+            const { error } = await db.from('database_rujukan').insert(payload);
+            if (error) throw error;
+        } else {
+            let itemId = dataDatabase[index].id;
+            const { error } = await db.from('database_rujukan').update(payload).eq('id', itemId);
+            if (error) throw error;
+        }
+        await loadInitialData();
+        hideModal('modalDatabase');
+        showToast('Data rujukan berhasil disimpan!');
+    } catch(err) {
+        showToast('Gagal menyimpan: ' + err.message, 'danger');
+    }
+    showLoading(false);
+}
+async function deleteDatabaseByIndex(indexKey) {
+    if (confirm('Yakin ingin menghapus data rujukan ini?')) {
+        let idx = parseInt(indexKey);
+        if (!isNaN(idx) && idx > -1 && idx < dataDatabase.length) {
+            showLoading(true);
+            let itemId = dataDatabase[idx].id;
+            const { error } = await db.from('database_rujukan').delete().eq('id', itemId);
+            if (error) showToast('Error: ' + error.message, 'danger');
+            else { await loadInitialData(); showToast('Data rujukan dihapus.'); }
+            showLoading(false);
+        }
+    }
+}
+function viewDatabaseByIndex(indexKey) {
+    let idx = parseInt(indexKey);
+    if (isNaN(idx) || idx < 0 || idx >= dataDatabase.length) return;
+    let item = dataDatabase[idx];
+    document.getElementById('viewContent').innerHTML = `<p><strong>Nama Pegawai:</strong> ${item.pegawai}</p><p><strong>Bidang:</strong> ${item.bidang}</p><p><strong>Nama Pasien:</strong> ${item.pasien}</p><p><strong>Poli / Ruang:</strong> ${item.poli}</p><p><strong>Tanggal Rujukan:</strong> ${parseExcelDate(item.tanggal)}</p><p><strong>Tahun Ajaran:</strong> ${getTahunAjaran(item.tanggal)}</p><p><strong>No Invoice:</strong> ${item.no_invoice}</p><p><strong>Tagihan NF:</strong> ${formatRupiah(item.tagihan)}</p><p><strong>Sub Total:</strong> ${formatRupiah(item.subtotal)}</p><p><strong>Cover Yayasan:</strong> ${formatRupiah(item.cover_yayasan || 0)}</p><p><strong>Biaya Pribadi (Hutang):</strong> ${formatRupiah(item.biaya_pribadi || 0)}</p>`;
+    showModal('modalView');
+}
+function filterDatabase() { let keyword = document.getElementById('searchDatabase').value.toLowerCase(); let filtered = getFilteredData().filter(item => (String(item.pegawai || '').toLowerCase().includes(keyword)) || (String(item.pasien || '').toLowerCase().includes(keyword)) || (String(item.no_invoice || '').toLowerCase().includes(keyword))); renderDatabaseTable(filtered); }
+function downloadTemplateDatabase() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", NAMA_PASIEN: "CONTOH PASIEN", POLI_RUANG: "POLI ANAK", TANGGAL_RUJUKAN: "2026-01-01", NO_INVOICE: "INV001", TAGIHAN_NF: 1000000, DISKON: 0, SUB_TOTAL: 1000000, COVER_YAYASAN: 1000000, BIAYA_PRIBADI: 0}]); XLSX.utils.book_append_sheet(wb, ws, "Template Database"); XLSX.writeFile(wb, "Template_Import_Database_Rujukan.xlsx"); showToast('Template berhasil diunduh!'); }
+async function importDatabaseExcel(event) {
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            if (typeof XLSX === 'undefined') throw new Error("Library XLSX tidak ditemukan");
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            if (json.length > 0) {
+                if (!confirm(`Akan mengimpor ${json.length} data rujukan. Data lama akan ditimpa. Lanjutkan?`)) { event.target.value = ''; return; }
+                showLoading(true);
+                await db.from('database_rujukan').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                let insertData = json.map(row => {
+                    let keys = Object.keys(row).reduce((acc, k) => { acc[k.trim().toUpperCase()] = row[k]; return acc; }, {});
+                    let rawNamaPegawai = keys.NAMA_PEGAWAI || keys.PEGAWAI || keys.NAMA || 'PEGAWAI';
+                    let cleanedName = cleanPegawaiName(rawNamaPegawai);
+                    let masterPeg = dataMasterPegawai.find(p => String(p.nama).trim() === cleanedName);
+                    let bidangFinal = masterPeg ? masterPeg.bidang : (String(keys.BIDANG || keys.UNIT || 'UMUM')).toUpperCase();
+                    let subtotal = parseFloat(keys.SUB_TOTAL || keys.SUBTOTAL || 0) || 0;
+                    let cover = parseFloat(keys.COVER_YAYASAN || keys.COVER || 0) || 0;
+                    if (cover === 0 && subtotal > 0 && String(keys.KETERANGAN || keys.SUMBER || 'COVER YAYASAN').toUpperCase() === 'COVER YAYASAN') { cover = subtotal; }
+                    let pribadi = subtotal - cover;
+                    return {
+                        no_invoice: String(keys.NO_INVOICE || keys.INVOICE || 'INV' + Date.now() + Math.random()).toUpperCase(),
+                        pegawai: cleanedName, bidang: bidangFinal,
+                        pasien: String(keys.NAMA_PASIEN || keys.PASIEN || 'PASIEN').toUpperCase(),
+                        poli: String(keys.POLI_RUANG || keys.POLI || 'POLI UMUM').toUpperCase(),
+                        tanggal: parseExcelDate(keys.TANGGAL_RUJUKAN || keys.TANGGAL || new Date()),
+                        tagihan: parseFloat(keys.TAGIHAN_NF || keys.TAGIHAN || 0) || 0,
+                        diskon: parseFloat(keys.DISKON || 0) || 0,
+                        subtotal: subtotal, cover_yayasan: cover, biaya_pribadi: pribadi
+                    };
+                });
+                const { error } = await db.from('database_rujukan').insert(insertData);
+                if (error) throw error;
+                await loadInitialData();
+                showToast(`Berhasil mengimpor ${insertData.length} data rujukan!`);
+            } else { showToast('File kosong.', 'warning'); }
+        } catch(err) { showToast('Gagal mengimpor file: ' + err.message, 'danger'); }
+        showLoading(false); event.target.value = '';
+    }; reader.readAsArrayBuffer(file);
+}
+
+// ===== PLAFON PER TAHUN AJARAN =====
+function renderPlafonTable() {
+    let searchKeyword = (document.getElementById('searchPlafon')?.value || '').toLowerCase();
+    let globalTa = document.getElementById('filterTahunAjaran').value;
+    
+    let usageMap = {}; 
+    dataDatabase.forEach(item => { 
+        let cover = Number(item.cover_yayasan) || 0; 
+        if (cover > 0) { 
+            let ta = getTahunAjaran(item.tanggal);
+            if (!usageMap[item.pegawai]) usageMap[item.pegawai] = {};
+            usageMap[item.pegawai][ta] = (usageMap[item.pegawai][ta] || 0) + cover;
+        } 
+    });
+    
+    let plafonRows = [];
+    let allPegawai = [...new Set([...Object.keys(dataPlafon), ...dataMasterPegawai.map(x => x.nama), ...dataDatabase.map(x => x.pegawai)])].sort();
+    
+    allPegawai.forEach(pegawai => {
+        let tas = new Set();
+        if (dataPlafon[pegawai] && typeof dataPlafon[pegawai] === 'object') {
+            Object.keys(dataPlafon[pegawai]).forEach(ta => tas.add(ta));
+        }
+        if (usageMap[pegawai]) {
+            Object.keys(usageMap[pegawai]).forEach(ta => tas.add(ta));
+        }
+        if (globalTa !== "SEMUA") tas.add(globalTa);
+        
+        if (tas.size === 0) {
+            let latestTa = getTahunAjaran(new Date().toISOString().split('T')[0]);
+            tas.add(latestTa);
+        }
+        
+        tas.forEach(ta => {
+            plafonRows.push({ pegawai, ta });
+        });
+    });
+    
+    let filteredPlafon = plafonRows.filter(row => 
+        row.pegawai.toLowerCase().includes(searchKeyword) && 
+        (globalTa === "SEMUA" || row.ta === globalTa)
+    ).sort((a, b) => a.pegawai.localeCompare(b.pegawai) || a.ta.localeCompare(b.ta));
+
+    let pageSize = parseInt(document.getElementById('plafonPageSize')?.value) || 15; 
+    let totalRows = filteredPlafon.length; 
+    let totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPagePlafon > totalPages) currentPagePlafon = totalPages; 
+    if (currentPagePlafon < 1) currentPagePlafon = 1; 
+    let startIndex = (currentPagePlafon - 1) * pageSize; 
+    let paginatedData = filteredPlafon.slice(startIndex, startIndex + pageSize);
+    
+    let html = '';
+    paginatedData.forEach((p, index) => {
+        let rowNumber = startIndex + index + 1;
+        let plafonTotal = (dataPlafon[p.pegawai] && dataPlafon[p.pegawai][p.ta]) ? dataPlafon[p.pegawai][p.ta] : 0;
+        let terpakai = (usageMap[p.pegawai] && usageMap[p.pegawai][p.ta]) ? usageMap[p.pegawai][p.ta] : 0;
+        let sisa = plafonTotal - terpakai;
+        let statusBadge = plafonTotal === 0 ? '<span class="badge bg-secondary">Belum Ditetapkan</span>' : sisa >= 0 ? '<span class="badge bg-success">Aman</span>' : '<span class="badge bg-danger">Limit Habis</span>';
+        let bidang = getBidangByPegawai(p.pegawai);
+        html += `<tr><td>${rowNumber}</td><td class="fw-bold">${p.pegawai}</td><td><span class="badge bg-secondary">${bidang}</span></td><td><span class="badge bg-primary">${p.ta}</span></td><td class="fw-bold text-primary">${formatRupiah(plafonTotal)}</td><td class="text-danger fw-bold">${formatRupiah(terpakai)}</td><td class="fw-bold ${sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(sisa)}</td><td class="text-center">${statusBadge}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-outline-info me-1" onclick="showPlafonDetail('${p.pegawai}', '${p.ta}')" title="Detail"><i class="fa-solid fa-list"></i></button> <button class="btn btn-sm btn-warning me-1" onclick="editPlafonPegawai('${p.pegawai}', '${p.ta}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deletePlafonPegawai('${p.pegawai}', '${p.ta}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+    });
+    document.getElementById('plafonTableBody').innerHTML = html || `<tr><td colspan="9" class="text-center text-muted">Belum ada data</td></tr>`;
+    let endRecord = Math.min(startIndex + pageSize, totalRows);
+    document.getElementById('plafonPaginationInfo').innerText = `Menampilkan ${totalRows > 0 ? startIndex + 1 : 0} - ${endRecord} dari ${totalRows} data`;
+    let navHtml = `<li class="page-item ${currentPagePlafon === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changePlafonPage(${currentPagePlafon - 1})">Prev</a></li>`;
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPagePlafon - 1 && i <= currentPagePlafon + 1)) { navHtml += `<li class="page-item ${currentPagePlafon === i ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changePlafonPage(${i})">${i}</a></li>`; } }
+    navHtml += `<li class="page-item ${currentPagePlafon === totalPages || totalPages === 0 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changePlafonPage(${currentPagePlafon + 1})">Next</a></li>`;
+    document.getElementById('plafonPaginationNav').innerHTML = navHtml;
+}
+function changePlafonPage(page) { currentPagePlafon = page; renderPlafonTable(); }
+function showPlafonDetail(pegawaiName, ta) { 
+    document.getElementById('modalPlafonDetailTitle').innerText = `Riwayat Penggunaan Plafon: ${pegawaiName} (TA ${ta})`; 
+    let userClaims = dataDatabase.filter(item => item.pegawai === pegawaiName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
+    let html = ''; let totalClaim = 0; 
+    userClaims.forEach((c, idx) => { let cover = Number(c.cover_yayasan) || 0; totalClaim += cover; html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${c.no_invoice}</code></td><td>${c.pasien}</td><td>${c.poli}</td><td class="fw-bold text-danger">${formatRupiah(cover)}</td></tr>`; }); 
+    if (userClaims.length === 0) { html = `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim.</td></tr>`; } else { html += `<tr class="table-success fw-bold"><td colspan="5" class="text-end">Total Terpakai:</td><td class="text-danger">${formatRupiah(totalClaim)}</td></tr>`; } 
+    document.getElementById('plafonDetailTableBody').innerHTML = html; showModal('modalPlafonDetail'); 
+}
+function getBidangByPegawai(pegawai) { let foundMaster = dataMasterPegawai.find(x => String(x.nama).trim() === String(pegawai).trim()); if (foundMaster) return foundMaster.bidang; let foundDb = dataDatabase.find(x => x.pegawai === pegawai); return foundDb ? foundDb.bidang : 'UMUM'; }
+
+async function openModalPlafon() { 
+    let nama = prompt("Masukkan Nama Pegawai untuk Setting Plafon:"); 
+    if (!nama) return; 
+    let cleanNama = cleanPegawaiName(nama); 
+    
+    let latestTa = getTahunAjaran(new Date().toISOString().split('T')[0]);
+    if (dataDatabase.length > 0) {
+        let dates = dataDatabase.map(d => new Date(d.tanggal)).filter(d => !isNaN(d.getTime()));
+        if (dates.length > 0) {
+            latestTa = getTahunAjaran(new Date(Math.max(...dates)).toISOString().split('T')[0]);
+        }
+    }
+    
+    let ta = prompt(`Masukkan Tahun Ajaran (contoh: ${latestTa}):`, latestTa); 
+    if (!ta) return; 
+    ta = ta.trim();
+    
+    let currentVal = (dataPlafon[cleanNama] && dataPlafon[cleanNama][ta]) ? dataPlafon[cleanNama][ta] : 0; 
+    let nominal = prompt(`Masukkan Total Plafon untuk ${cleanNama} TA ${ta} (Rp):`, currentVal); 
+    if (nominal !== null && !isNaN(parseFloat(nominal))) { 
+        showLoading(true);
+        const { error } = await db.from('plafon_kesehatan').upsert({ pegawai_nama: cleanNama, tahun_ajaran: ta, total_plafon: parseFloat(nominal) }, { onConflict: 'pegawai_nama,tahun_ajaran' });
+        if (error) showToast('Error: ' + error.message, 'danger');
+        else { await loadInitialData(); showToast(`Plafon ${cleanNama} TA ${ta}: ${formatRupiah(parseFloat(nominal))}`); }
+        showLoading(false);
+    } 
+}
+async function editPlafonPegawai(namaPegawai, ta) { 
+    let currentVal = (dataPlafon[namaPegawai] && dataPlafon[namaPegawai][ta]) ? dataPlafon[namaPegawai][ta] : 0; 
+    let nominal = prompt(`Ubah Plafon untuk "${namaPegawai}" TA ${ta} (Rp):`, currentVal); 
+    if (nominal !== null && !isNaN(parseFloat(nominal))) { 
+        showLoading(true);
+        const { error } = await db.from('plafon_kesehatan').upsert({ pegawai_nama: namaPegawai, tahun_ajaran: ta, total_plafon: parseFloat(nominal) }, { onConflict: 'pegawai_nama,tahun_ajaran' });
+        if (error) showToast('Error: ' + error.message, 'danger');
+        else { await loadInitialData(); showToast(`Plafon ${namaPegawai} TA ${ta} diperbarui: ${formatRupiah(parseFloat(nominal))}`); }
+        showLoading(false);
+    } 
+}
+async function deletePlafonPegawai(namaPegawai, ta) {
+    let usedPlafon = 0;
+    dataDatabase.forEach(item => { if (item.pegawai === namaPegawai && getTahunAjaran(item.tanggal) === ta && item.cover_yayasan > 0) usedPlafon += Number(item.cover_yayasan) || 0; });
+    if (usedPlafon > 0) { if(!confirm(`PERHATIAN: Pegawai ini sudah memiliki riwayat pemakaian plafon sebesar ${formatRupiah(usedPlafon)} di TA ${ta}. Jika plafon dihapus, pegawai ini tidak akan memiliki batas plafon (0) untuk TA tersebut. Lanjutkan?`)) return; }
+    else { if(!confirm(`Yakin ingin menghapus plafon untuk "${namaPegawai}" TA ${ta}?`)) return; }
+    showLoading(true);
+    const { error } = await db.from('plafon_kesehatan').delete().eq('pegawai_nama', namaPegawai).eq('tahun_ajaran', ta);
+    if (error) showToast('Error: ' + error.message, 'danger');
+    else { await loadInitialData(); showToast(`Plafon untuk ${namaPegawai} TA ${ta} berhasil dihapus.`); }
+    showLoading(false);
+}
+function downloadTemplatePlafon() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", TAHUN_AJARAN: "2023/2024", TOTAL_PLAFON: 10000000}]); XLSX.utils.book_append_sheet(wb, ws, "Template Plafon"); XLSX.writeFile(wb, "Template_Import_Plafon_SDM.xlsx"); showToast('Template berhasil diunduh!'); }
+async function importPlafonExcel(event) { 
+    const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); 
+    reader.onload = async function(e) { 
+        try { 
+            if (typeof XLSX === 'undefined') throw new Error("Library XLSX tidak ditemukan"); 
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); 
+            const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]); 
+            if (json.length > 0) { 
+                showLoading(true);
+                let insertData = json.map(row => { 
+                    let keys = Object.keys(row).reduce((acc, k) => { acc[k.trim().toUpperCase()] = row[k]; return acc; }, {}); 
+                    let nama = cleanPegawaiName(keys.NAMA_PEGAWAI || keys.NAMA || ''); 
+                    let ta = keys.TAHUN_AJARAN || keys.TA || '';
+                    let plafon = parseFloat(keys.TOTAL_PLAFON || keys.PLAFON || 0) || 0; 
+                    return { pegawai_nama: nama, tahun_ajaran: ta, total_plafon: plafon }; 
+                }).filter(p => p.pegawai_nama && p.tahun_ajaran);
+
+                const { error } = await db.from('plafon_kesehatan').upsert(insertData, { onConflict: 'pegawai_nama,tahun_ajaran' }); 
+                if (error) throw error; 
+                await loadInitialData(); showToast('Data Plafon berhasil diimpor!'); 
+            } 
+        } catch(err) { showToast('Gagal mengimpor file plafon: ' + err.message, 'danger'); } 
+        showLoading(false); event.target.value = ''; 
+    }; 
+    reader.readAsArrayBuffer(file); 
+}
+
+// ===== CICILAN & POTONGAN (Hutang Akumulasi) =====
+function getHutangPegawai(pegawaiName) { 
+    let totalDebt = 0;
+    let usageByYear = {};
+    dataDatabase.forEach(item => {
+        if (item.pegawai === pegawaiName) {
+            let ta = getTahunAjaran(item.tanggal);
+            if (!usageByYear[ta]) usageByYear[ta] = { cover: 0, pribadi: 0 };
+            usageByYear[ta].cover += Number(item.cover_yayasan) || 0;
+            usageByYear[ta].pribadi += Number(item.biaya_pribadi) || 0;
+        }
+    });
+    Object.keys(usageByYear).forEach(ta => {
+        let plafonTa = (dataPlafon[pegawaiName] && dataPlafon[pegawaiName][ta]) ? dataPlafon[pegawaiName][ta] : 0;
+        let used = usageByYear[ta].cover;
+        let excess = used - plafonTa;
+        if (excess > 0) {
+            totalDebt += excess; 
+        }
+        totalDebt += usageByYear[ta].pribadi;
+    });
+    return totalDebt; 
+}
+function getSisaHutangPegawai(pegawaiName) { 
+    let totalHutang = getHutangPegawai(pegawaiName); 
+    let totalDibayar = 0; 
+    dataCicilan.forEach(c => { if (c.pegawai === pegawaiName && c.status !== 'DIBATALKAN') { totalDibayar += c.riwayat.reduce((sum, r) => sum + (Number(r.jumlah) || 0), 0); } }); 
+    let sisa = totalHutang - totalDibayar; 
+    return sisa < 0 ? 0 : sisa; 
+}
+function updateKewajibanOtomatis() { 
+    let pegawai = document.getElementById('cicPegawai').value; 
+    let infoEl = document.getElementById('infoKewajiban'); 
+    if (!pegawai) { 
+        document.getElementById('cicTotal').value = 0; 
+        infoEl.innerHTML = ''; 
+        return; 
+    } 
+    let hutang = getHutangPegawai(pegawai); 
+    document.getElementById('cicTotal').value = hutang; 
+    
+    let usageByYear = {};
+    dataDatabase.forEach(item => {
+        if (item.pegawai === pegawai) {
+            let ta = getTahunAjaran(item.tanggal);
+            if (!usageByYear[ta]) usageByYear[ta] = { cover: 0, pribadi: 0 };
+            usageByYear[ta].cover += Number(item.cover_yayasan) || 0;
+            usageByYear[ta].pribadi += Number(item.biaya_pribadi) || 0;
+        }
+    });
+    
+    let totalPribadi = 0;
+    let totalKelebihan = 0;
+    
+    Object.keys(usageByYear).forEach(ta => {
+        let plafonTa = (dataPlafon[pegawai] && dataPlafon[pegawai][ta]) ? dataPlafon[pegawai][ta] : 0;
+        let used = usageByYear[ta].cover;
+        let excess = used - plafonTa;
+        if (excess > 0) totalKelebihan += excess; 
+        totalPribadi += usageByYear[ta].pribadi;
+    });
+    
+    infoEl.innerHTML = 'Rincian Akumulasi Hutang: Pribadi (' + formatRupiah(totalPribadi) + ') + Kelebihan Plafon (' + formatRupiah(totalKelebihan) + ') = <strong>' + formatRupiah(hutang) + '</strong>'; 
+}
+function toggleSkemaCicilan() { let skema = document.getElementById('cicSkema').value; let divTenor = document.getElementById('divTenor'); if (skema === 'BULANAN') { divTenor.classList.remove('d-none'); } else { divTenor.classList.add('d-none'); } }
+function openModalCicilan() { let selectPegawaiHtml = '<option value="">-- Pilih Pegawai --</option>'; dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { selectPegawaiHtml += '<option value="' + p.nama + '">' + p.nama + ' (' + p.bidang + ')</option>'; }); document.getElementById('cicPegawai').innerHTML = selectPegawaiHtml; document.getElementById('formCicilan').reset(); document.getElementById('cicTanggal').value = new Date().toISOString().split('T')[0]; document.getElementById('cicSkema').value = 'BULANAN'; document.getElementById('infoKewajiban').innerHTML = ''; toggleSkemaCicilan(); showModal('modalCicilan'); }
+async function saveCicilan(event) { 
+    event.preventDefault(); 
+    let pegawai = document.getElementById('cicPegawai').value; 
+    let totalKewajiban = parseFloat(document.getElementById('cicTotal').value) || 0; 
+    let skema = document.getElementById('cicSkema').value; 
+    let tenor = skema === 'BULANAN' ? (parseFloat(document.getElementById('cicTenor').value) || 1) : 1; 
+    let metode = document.getElementById('cicMetode').value; 
+    let keterangan = document.getElementById('cicKeterangan').value; 
+    let tanggal = document.getElementById('cicTanggal').value; 
+    if (!pegawai || totalKewajiban <= 0) { showToast('Pegawai dan Total Kewajiban wajib diisi!', 'warning'); return; } 
+    
+    let newId = 'CIC' + Date.now(); 
+    let payload = { id: newId, pegawai, tanggal, total_kewajiban: totalKewajiban, sisa_kewajiban: totalKewajiban, skema, tenor, metode, keterangan, status: 'AKTIF' };
+    
+    showLoading(true);
+    const { error } = await db.from('cicilan').insert(payload);
+    if (error) showToast('Error: ' + error.message, 'danger');
+    else { await loadInitialData(); hideModal('modalCicilan'); showToast('Kesepakatan cicilan berhasil dibuat!'); }
+    showLoading(false);
+}
+
+function renderCicilanTable() {
+    let searchKeyword = (document.getElementById('searchCicilan')?.value || '').toLowerCase();
+    let filteredCicilan = dataCicilan.filter(c => String(c.pegawai || '').toLowerCase().includes(searchKeyword) || String(c.status || '').toLowerCase().includes(searchKeyword));
+    let pageSize = parseInt(document.getElementById('cicilanPageSize')?.value) || 15; let totalRows = filteredCicilan.length; let totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPageCicilan > totalPages) currentPageCicilan = totalPages; if (currentPageCicilan < 1) currentPageCicilan = 1; let startIndex = (currentPageCicilan - 1) * pageSize; let paginatedData = filteredCicilan.slice(startIndex, startIndex + pageSize);
+    let html = '';
+    paginatedData.forEach((c, index) => {
+        let rowNumber = startIndex + index + 1;
+        let statusBadge = c.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : c.status === 'DIBATALKAN' ? '<span class="badge bg-danger">Dibatalkan</span>' : '<span class="badge bg-warning text-dark">Aktif</span>';
+        let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel)' : 'Langsung Lunas';
+        html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + c.pegawai + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + c.metode + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-danger" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan"><i class="fa-solid fa-ban"></i></button></td></tr>';
+    });
+    document.getElementById('cicilanTableBody').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Belum ada data cicilan</td></tr>';
+    let endRecord = Math.min(startIndex + pageSize, totalRows);
+    document.getElementById('cicilanPaginationInfo').innerText = 'Menampilkan ' + (totalRows > 0 ? startIndex + 1 : 0) + ' - ' + endRecord + ' dari ' + totalRows + ' data';
+    let navHtml = '<li class="page-item ' + (currentPageCicilan === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + (currentPageCicilan - 1) + ')">Prev</a></li>';
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPageCicilan - 1 && i <= currentPageCicilan + 1)) { navHtml += '<li class="page-item ' + (currentPageCicilan === i ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + i + ')">' + i + '</a></li>'; } }
+    navHtml += '<li class="page-item ' + (currentPageCicilan === totalPages || totalPages === 0 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + (currentPageCicilan + 1) + ')">Next</a></li>';
+    document.getElementById('cicilanPaginationNav').innerHTML = navHtml;
+}
+function changeCicilanPage(page) { currentPageCicilan = page; renderCicilanTable(); }
+async function showCicilanDetail(cicilanId) { 
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai; 
+    let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel, Estimasi ' + c.tenor + ' bulan)' : 'Langsung Lunas'; 
+    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
+    document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
+    document.getElementById('bayarCicilanId').value = c.id; 
+    document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0]; 
+    document.getElementById('bayarJumlah').value = ''; 
+    document.getElementById('bayarMetode').value = c.metode; 
+    
+    let html = ''; 
+    if (c.riwayat && c.riwayat.length > 0) {
+        c.riwayat.forEach((r, idx) => { 
+            html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(r.tanggal) + '</td><td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td><td>' + r.metode + '</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="hapusPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')"><i class="fa-solid fa-trash"></i></button></td></tr>'; 
+        }); 
+    } else {
+        html = '<tr><td colspan="5" class="text-center text-muted">Belum ada pembayaran</td></tr>';
+    }
+    document.getElementById('cicilanRiwayatTableBody').innerHTML = html; 
+    showModal('modalCicilanDetail'); 
+}
+async function bayarCicilan(event) { 
+    event.preventDefault(); 
+    let cicilanId = document.getElementById('bayarCicilanId').value; 
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    let jumlah = parseFloat(document.getElementById('bayarJumlah').value) || 0; 
+    let tanggal = document.getElementById('bayarTanggal').value; 
+    let metode = document.getElementById('bayarMetode').value; 
+    if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; } 
+    if (jumlah > c.sisa_kewajiban) { if (!confirm('Nominal melebihi sisa kewajiban (' + formatRupiah(c.sisa_kewajiban) + '). Sisa akan dianggap lebih bayar. Lanjutkan?')) return; } 
+    
+    showLoading(true);
+    // Insert riwayat
+    const { error: errIns } = await db.from('cicilan_riwayat').insert({ cicilan_id: cicilanId, tanggal, jumlah, metode });
+    if (errIns) { showToast('Error: ' + errIns.message, 'danger'); showLoading(false); return; }
+    
+    // Update cicilan
+    let sisaBaru = c.sisa_kewajiban - jumlah;
+    let statusBaru = 'AKTIF';
+    if (sisaBaru <= 0) { sisaBaru = 0; statusBaru = 'LUNAS'; }
+    
+    const { error: errUpd } = await db.from('cicilan').update({ sisa_kewajiban: sisaBaru, status: statusBaru }).eq('id', cicilanId);
+    if (errUpd) showToast('Error: ' + errUpd.message, 'danger');
+    else { await loadInitialData(); showCicilanDetail(cicilanId); showToast('Pembayaran berhasil dicatat!'); }
+    showLoading(false);
+}
+async function hapusPembayaranCicilan(cicilanId, riwayatId) { 
+    if (!confirm('Yakin ingin membatalkan pembayaran ini?')) return; 
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    let pembayaran = c.riwayat.find(r => r.id === riwayatId);
+    if (!pembayaran) return;
+    
+    showLoading(true);
+    const { error: errDel } = await db.from('cicilan_riwayat').delete().eq('id', riwayatId);
+    if (errDel) { showToast('Error: ' + errDel.message, 'danger'); showLoading(false); return; }
+    
+    let sisaBaru = Number(c.sisa_kewajiban) + Number(pembayaran.jumlah);
+    let statusBaru = 'AKTIF';
+    if (c.status === 'LUNAS' && sisaBaru > 0) statusBaru = 'AKTIF';
+    
+    const { error: errUpd } = await db.from('cicilan').update({ sisa_kewajiban: sisaBaru, status: statusBaru }).eq('id', cicilanId);
+    if (errUpd) showToast('Error: ' + errUpd.message, 'danger');
+    else { await loadInitialData(); showCicilanDetail(cicilanId); showToast('Pembayaran dibatalkan.'); }
+    showLoading(false);
+}
+async function batalkanCicilan(cicilanId) { 
+    if (!confirm('Yakin ingin membatalkan seluruh kesepakatan cicilan this?')) return; 
+    showLoading(true);
+    const { error } = await db.from('cicilan').update({ status: 'DIBATALKAN' }).eq('id', cicilanId);
+    if (error) showToast('Error: ' + error.message, 'danger');
+    else { await loadInitialData(); showToast('Cicilan dibatalkan.'); }
+    showLoading(false);
+}
+
+function renderBidangTable(filteredData) { let bidangMap = {}; filteredData.forEach(item => { if (!bidangMap[item.bidang]) bidangMap[item.bidang] = {bidang: item.bidang, pegawaiSet: new Set(), kunjungan: 0, tagihan: 0, subtotal: 0}; bidangMap[item.bidang].pegawaiSet.add(item.pegawai); bidangMap[item.bidang].kunjungan += 1; bidangMap[item.bidang].tagihan += Number(item.tagihan) || 0; bidangMap[item.bidang].subtotal += Number(item.subtotal) || 0; }); let html = ''; let no = 1; Object.values(bidangMap).forEach(item => { html += '<tr><td>' + no++ + '</td><td class="fw-bold">' + item.bidang + '</td><td>' + item.pegawaiSet.size + ' Pegawai</td><td><span class="badge bg-success">' + item.kunjungan + ' Kasus</span></td><td>' + formatRupiah(item.tagihan) + '</td><td class="fw-bold text-success">' + formatRupiah(item.subtotal) + '</td></tr>'; }); document.getElementById('bidangTableBody').innerHTML = html || '<tr><td colspan="6" class="text-center text-muted">Tidak ada data</td></tr>'; }
+
+function renderSdmTable() {
+    let sdmTaFilter = document.getElementById('filterSdmTa')?.value || 'SEMUA';
+    let searchKeyword = (document.getElementById('searchSdm')?.value || '').toLowerCase();
+    let sourceData = dataDatabase;
+    if (sdmTaFilter !== "SEMUA") sourceData = dataDatabase.filter(item => getTahunAjaran(item.tanggal) === sdmTaFilter);
+    
+    let sdmMap = {};
+    sourceData.forEach(item => { 
+        if (!sdmMap[item.pegawai]) sdmMap[item.pegawai] = {nama: item.pegawai, bidang: item.bidang, kunjungan: 0, tagihan: 0, subtotal: 0, coverYayasan: 0, biayaPribadi: 0}; 
+        sdmMap[item.pegawai].kunjungan += 1; 
+        sdmMap[item.pegawai].tagihan += Number(item.tagihan) || 0; 
+        sdmMap[item.pegawai].subtotal += Number(item.subtotal) || 0; 
+        sdmMap[item.pegawai].coverYayasan += Number(item.cover_yayasan) || 0;
+        sdmMap[item.pegawai].biayaPribadi += Number(item.biaya_pribadi) || 0;
+    });
+    
+    let sdmList = Object.values(sdmMap).filter(item => (String(item.nama || '').toLowerCase().includes(searchKeyword)) || (String(item.bidang || '').toLowerCase().includes(searchKeyword)));
+    let pageSize = parseInt(document.getElementById('sdmPageSize')?.value) || 15; 
+    let totalRows = sdmList.length; 
+    let totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPageSdm > totalPages) currentPageSdm = totalPages; 
+    if (currentPageSdm < 1) currentPageSdm = 1; 
+    let startIndex = (currentPageSdm - 1) * pageSize; 
+    let paginatedData = sdmList.slice(startIndex, startIndex + pageSize);
+    
+    let html = '';
+    paginatedData.forEach((item, index) => {
+        let rowNumber = startIndex + index + 1;
+        let grossHutang = getHutangPegawai(item.nama); // Total kewajiban asli
+        let sisaHutang = getSisaHutangPegawai(item.nama); // Sisa setelah dibayar cicilan
+        
+        let badgeHutang = '';
+        if (grossHutang === 0) {
+            badgeHutang = '<span class="badge bg-secondary">Tidak Ada Hutang</span>';
+        } else if (sisaHutang === 0) {
+            badgeHutang = '<span class="badge bg-success">Lunas</span>';
+        } else {
+            badgeHutang = '<span class="badge bg-danger">Sisa: ' + formatRupiah(sisaHutang) + '</span>';
+        }
+        
+        html += '<tr>' +
+            '<td>' + rowNumber + '</td>' +
+            '<td class="fw-bold">' + item.nama + '</td>' +
+            '<td><span class="badge bg-secondary">' + item.bidang + '</span></td>' +
+            '<td>' + item.kunjungan + '</td>' +
+            '<td>' + formatRupiah(item.tagihan) + '</td>' +
+            '<td class="fw-bold text-success">' + formatRupiah(item.subtotal) + '</td>' +
+            '<td class="text-primary">' + formatRupiah(item.coverYayasan) + '</td>' +
+            '<td class="text-warning fw-bold">' + formatRupiah(item.biayaPribadi) + '</td>' +
+            '<td class="text-danger">' + formatRupiah(grossHutang) + '</td>' +
+            '<td>' + badgeHutang + '</td>' +
+            '</tr>';
+    });
+    document.getElementById('sdmTableBody').innerHTML = html || '<tr><td colspan="10" class="text-center text-muted">Tidak ada data</td></tr>';
+    let endRecord = Math.min(startIndex + pageSize, totalRows);
+    document.getElementById('sdmPaginationInfo').innerText = 'Menampilkan ' + (totalRows > 0 ? startIndex + 1 : 0) + ' - ' + endRecord + ' dari ' + totalRows + ' data';
+    let navHtml = '<li class="page-item ' + (currentPageSdm === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeSdmPage(' + (currentPageSdm - 1) + ')">Prev</a></li>';
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPageSdm - 1 && i <= currentPageSdm + 1)) { navHtml += '<li class="page-item ' + (currentPageSdm === i ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeSdmPage(' + i + ')">' + i + '</a></li>'; } }
+    navHtml += '<li class="page-item ' + (currentPageSdm === totalPages || totalPages === 0 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeSdmPage(' + (currentPageSdm + 1) + ')">Next</a></li>';
+    document.getElementById('sdmPaginationNav').innerHTML = navHtml;
+    window.cachedSdmData = sdmList;
+}
+function changeSdmPage(page) { currentPageSdm = page; renderSdmTable(); }
+function exportFullExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); let wsDatabase = XLSX.utils.json_to_sheet(filteredData); XLSX.utils.book_append_sheet(wb, wsDatabase, "Database Rujukan"); let sdmData = (window.cachedSdmData || []).map((item, idx) => ({ No: idx + 1, Nama: item.nama, Bidang: item.bidang, Kunjungan: item.kunjungan, TagihanNF: item.tagihan, SubTotal: item.subtotal, CoverYayasan: item.coverYayasan, BiayaPribadi: item.biayaPribadi, TotalHutang: getHutangPegawai(item.nama), SisaHutang: getSisaHutangPegawai(item.nama) })); let wsSdm = XLSX.utils.json_to_sheet(sdmData); XLSX.utils.book_append_sheet(wb, wsSdm, "Rekap per SDM"); XLSX.writeFile(wb, "Rekap_Invoice_Edelweiss.xlsx"); showToast('Export Excel berhasil!'); }
+
+function hitungSimulasi() { let tagihan = parseFloat(document.getElementById('simTagihan')?.value) || 0; let diskonPersen = parseFloat(document.getElementById('simDiskon')?.value) || 0; let bpjs = parseFloat(document.getElementById('simBpjs')?.value) || 0; let diskonNominal = (tagihan * diskonPersen) / 100; let subTotal = tagihan - diskonNominal - bpjs; if (subTotal < 0) subTotal = 0; document.getElementById('resTagihan').innerText = formatRupiah(tagihan); document.getElementById('resDiskon').innerText = formatRupiah(diskonNominal); document.getElementById('resSubTotal').innerText = formatRupiah(subTotal); }
+
+function setupFileInputs() {
+    const map = { importMasterPegawaiFile: importMasterPegawaiExcel, importMasterBidangFile: importMasterBidangExcel, importMasterDeptFile: importMasterDeptExcel, importDatabaseFile: importDatabaseExcel, importPlafonFile: importPlafonExcel };
+    for (const [id, func] of Object.entries(map)) { const el = document.getElementById(id); if (el) el.addEventListener('change', func); }
+}
+
+// ===== MIGRATION FUNCTION (LOCAL STORAGE TO SUPABASE) =====
+async function migrateLocalToSupabase() {
+    if (!confirm('Apakah Anda yakin ingin memigrasikan semua data dari browser ke Supabase? Pastikan Anda menjalankan ini di browser yang masih menyimpan data lama.')) return;
+    
+    showLoading(true);
+    try {
+        // 0. Bersihkan tabel di Supabase terlebih dahulu agar tidak dobel
+        await db.from('cicilan_riwayat').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await db.from('cicilan').delete().neq('id', 'xxx');
+        await db.from('database_rujukan').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await db.from('plafon_kesehatan').delete().neq('pegawai_nama', 'xxx');
+        await db.from('master_pegawai').delete().neq('nip', 'xxx');
+        await db.from('master_bidang').delete().neq('nama_bidang', 'xxx');
+        await db.from('master_departemen').delete().neq('nama_departemen', 'xxx');
+
+        // 1. Migrate Bidang
+        let localBidang = JSON.parse(localStorage.getItem('edel_master_bidang') || '[]');
+        if (localBidang.length > 0) {
+            let mapped = localBidang.map(b => ({ nama_bidang: String(b).trim().toUpperCase() })).filter(b => b.nama_bidang);
+            await db.from('master_bidang').insert(mapped);
+        }
+
+        // 2. Migrate Departemen
+        let localDept = JSON.parse(localStorage.getItem('edel_master_dept') || '[]');
+        if (localDept.length > 0) {
+            let mapped = localDept.map(d => ({ nama_departemen: String(d).trim().toUpperCase() })).filter(d => d.nama_departemen);
+            await db.from('master_departemen').insert(mapped);
+        }
+
+        // 3. Migrate Pegawai
+        let localPegawai = JSON.parse(localStorage.getItem('edel_master_pegawai') || '[]');
+        if (localPegawai.length > 0) {
+            let mapped = localPegawai.map(p => ({ 
+                nip: String(p.nip).trim(), 
+                nama: String(p.nama).trim().toUpperCase(), 
+                bidang: String(p.bidang || '').trim().toUpperCase(), 
+                departemen: String(p.dept || p.departemen || '').trim().toUpperCase(), 
+                status: String(p.status || 'AKTIF').trim().toUpperCase() 
+            })).filter(p => p.nip && p.nama);
+            
+            const { error: errPegawai } = await db.from('master_pegawai').insert(mapped);
+            if (errPegawai) {
+                console.error("Error Migrasi Pegawai:", errPegawai);
+                showToast('Beberapa data pegawai gagal diimpor. Cek console (F12).', 'warning');
+            }
+        }
+
+        // 4. Migrate Rujukan
+        let localRujukan = JSON.parse(localStorage.getItem('edel_database') || '[]');
+        if (localRujukan.length > 0) {
+            let mapped = localRujukan.map(r => ({
+                no_invoice: String(r.invoice).trim().toUpperCase(), 
+                pegawai: String(r.pegawai).trim().toUpperCase(), 
+                bidang: String(r.bidang || '').trim().toUpperCase(), 
+                pasien: String(r.pasien).trim().toUpperCase(), 
+                poli: String(r.poli).trim().toUpperCase(),
+                tanggal: r.tanggal, 
+                tagihan: Number(r.tagihan) || 0, 
+                diskon: Number(r.diskon) || 0, 
+                subtotal: Number(r.subtotal) || 0,
+                cover_yayasan: Number(r.coverYayasan || 0) || 0, 
+                biaya_pribadi: Number(r.biayaPribadi || 0) || 0
+            }));
+            await db.from('database_rujukan').insert(mapped);
+        }
+
+        // 5. Migrate Plafon
+        let localPlafon = JSON.parse(localStorage.getItem('edel_plafon') || '{}');
+        let plafonMapped = [];
+        Object.keys(localPlafon).forEach(nama => {
+            let tas = localPlafon[nama];
+            if (typeof tas === 'object' && tas !== null) {
+                Object.keys(tas).forEach(ta => {
+                    plafonMapped.push({ pegawai_nama: String(nama).trim().toUpperCase(), tahun_ajaran: ta, total_plafon: tas[ta] });
+                });
+            } else {
+                plafonMapped.push({ pegawai_nama: String(nama).trim().toUpperCase(), tahun_ajaran: getTahunAjaran(new Date().toISOString().split('T')[0]), total_plafon: Number(tas) || 0 });
+            }
+        });
+        if (plafonMapped.length > 0) {
+            await db.from('plafon_kesehatan').insert(plafonMapped);
+        }
+
+        // 6. Migrate Cicilan & Riwayat
+        let localCicilan = JSON.parse(localStorage.getItem('edel_cicilan') || '[]');
+        let cicilanMapped = [];
+        let riwayatMapped = [];
+        
+        localCicilan.forEach(c => {
+            cicilanMapped.push({
+                id: c.id, pegawai: String(c.pegawai).trim().toUpperCase(), tanggal: c.tanggal, total_kewajiban: Number(c.totalKewajiban) || 0,
+                sisa_kewajiban: Number(c.sisaKewajiban) || 0, skema: c.skema, tenor: c.tenor || 1, metode: c.metode,
+                keterangan: c.keterangan, status: c.status || 'AKTIF'
+            });
+            if (c.riwayat && c.riwayat.length > 0) {
+                c.riwayat.forEach(r => {
+                    riwayatMapped.push({
+                        cicilan_id: c.id, tanggal: r.tanggal, jumlah: Number(r.jumlah) || 0, metode: r.metode
+                    });
+                });
+            }
+        });
+        
+        if (cicilanMapped.length > 0) {
+            await db.from('cicilan').insert(cicilanMapped);
+        }
+        if (riwayatMapped.length > 0) {
+            await db.from('cicilan_riwayat').insert(riwayatMapped);
+        }
+
+        showToast('Migrasi data ke Supabase Cloud berhasil!');
+        await loadInitialData();
+    } catch (err) {
+        showToast('Gagal migrasi: ' + err.message, 'danger');
+        console.error("Migrasi Error:", err);
+    }
+    showLoading(false);
+}
+
+// ===== INITIAL DATA LOADER (SUPABASE) =====
+async function loadInitialData() {
+    showLoading(true);
+    try {
+        // 1. Master Bidang
+        let { data: bidang } = await db.from('master_bidang').select('*');
+        dataMasterBidang = bidang || [];
+
+        // 2. Master Departemen
+        let { data: dept } = await db.from('master_departemen').select('*');
+        dataMasterDept = dept || [];
+
+        // 3. Master Pegawai
+        let { data: pegawai } = await db.from('master_pegawai').select('*');
+        dataMasterPegawai = pegawai || [];
+
+        // 4. Rujukan
+        let { data: rujukan } = await db.from('database_rujukan').select('*').order('tanggal', { ascending: false });
+        dataDatabase = rujukan || [];
+
+        // 5. Plafon
+        let { data: plafon } = await db.from('plafon_kesehatan').select('*');
+        dataPlafon = {};
+        if (plafon) {
+            plafon.forEach(p => {
+                if (!dataPlafon[p.pegawai_nama]) dataPlafon[p.pegawai_nama] = {};
+                dataPlafon[p.pegawai_nama][p.tahun_ajaran] = p.total_plafon;
+            });
+        }
+
+        // 6. Cicilan
+        let { data: cicilan } = await db.from('cicilan').select('*');
+        dataCicilan = cicilan || [];
+        
+        // 7. Cicilan Riwayat
+        let { data: riwayat } = await db.from('cicilan_riwayat').select('*');
+        if (riwayat) {
+            riwayat.forEach(r => {
+                let cic = dataCicilan.find(c => c.id === r.cicilan_id);
+                if (cic) {
+                    if (!cic.riwayat) cic.riwayat = [];
+                    cic.riwayat.push({ id: r.id, tanggal: r.tanggal, jumlah: r.jumlah, metode: r.metode });
+                }
+            });
+        }
+
+        await updateAllSystems();
+    } catch (err) {
+        showToast('Gagal memuat data dari Supabase: ' + err.message, 'danger');
+    }
+    showLoading(false);
+}
+
+window.addEventListener('DOMContentLoaded', () => { 
+    setupFileInputs(); 
+    loadInitialData(); 
+    hitungSimulasi(); 
+});
+</script>
+</body>
+</html>
