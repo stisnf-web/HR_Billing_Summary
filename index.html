@@ -572,13 +572,10 @@ function getTahunAjaran(tanggalStr) {
 function formatTahunAjaran(ta) {
     if (!ta) return '';
     let trimmed = String(ta).trim();
-    // Format: 2023/2024 atau 2023-2024 atau 2023
     if (/^\d{4}\/\d{4}$/.test(trimmed)) return trimmed;
     if (/^\d{4}-\d{4}$/.test(trimmed)) return trimmed.replace('-', '/');
     if (/^\d{4}$/.test(trimmed)) {
         let year = parseInt(trimmed);
-        // Asumsi: jika tahun ajaran, Juli-Desember = year/year+1, Jan-Juni = year-1/year
-        // Default: ambil Juli tahun tsb s/d Juni tahun depan
         return `${year}/${year + 1}`;
     }
     return trimmed;
@@ -592,7 +589,6 @@ function getLatestTahunAjaran() {
             latestTa = getTahunAjaran(new Date(Math.max(...dates)).toISOString().split('T')[0]);
         }
     }
-    // Cek juga dari plafon
     let plafonTas = [];
     Object.values(dataPlafon).forEach(taObj => {
         if (taObj && typeof taObj === 'object') {
@@ -657,8 +653,6 @@ async function updateAllSystems() {
 
 // ===== FUNGSI UTAMA PLAFON: HITUNG PEMAKAIAN PER TAHUN AJARAN =====
 function getPlafonUsageByTA() {
-    // Hitung total cover_yayasan per pegawai per tahun ajaran
-    // Inilah yang akan mengurangi jatah plafon sesuai tahun masing-masing
     let usageMap = {};
     dataDatabase.forEach(item => {
         let cover = Number(item.cover_yayasan) || 0;
@@ -775,7 +769,7 @@ async function importMasterPegawaiExcel(event) {
                     return { nip: String(keys.NIP || 'EMP' + Date.now() + Math.random().toString(36).substr(2, 4)), nama: cleanPegawaiName(keys.NAMA_PEGAWAI || keys.NAMA || ''), bidang: String(keys.BIDANG || 'UMUM').toUpperCase(), departemen: String(keys.DEPARTEMEN || keys.DEPT || 'UMUM').toUpperCase(), status: String(keys.STATUS || 'AKTIF').toUpperCase() };
                 }).filter(p => p.nama);
                 
-                pendingImportData = { type: 'master_pegawai', data: insertData, columns: ['NIP','NAMA','BIDANG','DEPARTEMEN','STATUS'] };
+                pendingImportData = { type: 'master_pegawai', data: insertData };
                 showPreviewImport('Preview Import Data Pegawai', `${insertData.length} data pegawai akan diimpor. Data lama dengan NIP yang sama akan ditimpa.`, insertData, ['nip','nama','bidang','departemen','status']);
             } else { showToast('File kosong atau format tidak sesuai.', 'warning'); }
         } catch (err) { showToast('Gagal mengimpor file Excel: ' + err.message, 'danger'); }
@@ -833,34 +827,50 @@ function showPreviewImport(title, info, data, columns) {
     showModal('modalPreviewImport');
 }
 
+// ===== FUNGSI DEDUPLIKAT UNTUK MENGATASI ERROR ON CONFLICT DO UPDATE =====
+function deduplicateData(arr, keys) {
+    if (!arr || arr.length === 0) return arr;
+    const map = new Map();
+    arr.forEach(item => {
+        let compositeKey = keys.map(k => String(item[k] || '').trim().toLowerCase()).join('|||');
+        map.set(compositeKey, item);
+    });
+    return Array.from(map.values());
+}
+
 async function confirmImport() {
     if (!pendingImportData) { showToast('Tidak ada data untuk diimpor', 'warning'); return; }
     hideModal('modalPreviewImport');
     showLoading(true);
     try {
-        const { type, data } = pendingImportData;
+        let { type, data } = pendingImportData;
         let errorMsg = null;
         
         if (type === 'master_pegawai') {
+            data = deduplicateData(data, ['nip']);
             const { error } = await db.from('master_pegawai').upsert(data, { onConflict: 'nip' });
             if (error) errorMsg = error.message;
         } else if (type === 'master_bidang') {
+            data = deduplicateData(data, ['nama_bidang']);
             const { error } = await db.from('master_bidang').upsert(data, { onConflict: 'nama_bidang' });
             if (error) errorMsg = error.message;
         } else if (type === 'master_departemen') {
+            data = deduplicateData(data, ['nama_departemen']);
             const { error } = await db.from('master_departemen').upsert(data, { onConflict: 'nama_departemen' });
             if (error) errorMsg = error.message;
         } else if (type === 'database_rujukan') {
+            data = deduplicateData(data, ['no_invoice']);
             const { error } = await db.from('database_rujukan').upsert(data, { onConflict: 'no_invoice' });
             if (error) errorMsg = error.message;
         } else if (type === 'plafon') {
+            data = deduplicateData(data, ['pegawai_nama', 'tahun_ajaran']);
             const { error } = await db.from('plafon_kesehatan').upsert(data, { onConflict: 'pegawai_nama,tahun_ajaran' });
             if (error) errorMsg = error.message;
         }
         
         if (errorMsg) throw new Error(errorMsg);
         await loadInitialData();
-        showToast(`Berhasil mengimpor ${data.length} data!`);
+        showToast(`Berhasil mengimpor ${data.length} data ke Cloud!`);
     } catch (err) {
         showToast('Gagal mengimpor: ' + err.message, 'danger');
     }
@@ -1051,7 +1061,6 @@ function checkPlafonAvailability() {
     let info = getPlafonInfo(pegawai, ta);
     let editingIdx = document.getElementById('dbIndex').value;
     
-    // Jika sedang edit, kurangi cover item yang sedang diedit dari total terpakai (karena akan dihitung ulang)
     let terpakai = info.terpakai;
     if (editingIdx !== '') {
         let editingItem = dataDatabase[parseInt(editingIdx)];
@@ -1327,7 +1336,6 @@ async function importPlafonExcel(event) {
                     let nama = cleanPegawaiName(keys.NAMA_PEGAWAI || keys.NAMA || ''); 
                     let rawTa = keys.TAHUN_AJARAN || keys.TA || keys.TAHUN || '';
                     let ta = formatTahunAjaran(rawTa);
-                    // AUTO-FILL TAHUN AJARAN jika kosong atau tidak valid
                     if (!ta || ta === '' || !/^\d{4}\/\d{4}$/.test(ta)) {
                         ta = latestTa;
                         autoTaCount++;
@@ -1607,7 +1615,6 @@ function renderSdmTable() {
 }
 function changeSdmPage(page) { currentPageSdm = page; renderSdmTable(); }
 function exportFullExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); let wsDatabase = XLSX.utils.json_to_sheet(filteredData); XLSX.utils.book_append_sheet(wb, wsDatabase, "Database Rujukan"); let sdmData = (window.cachedSdmData || []).map((item, idx) => ({ No: idx + 1, Nama: item.nama, Bidang: item.bidang, Kunjungan: item.kunjungan, TagihanNF: item.tagihan, SubTotal: item.subtotal, CoverYayasan: item.coverYayasan, BiayaPribadi: item.biayaPribadi, TotalHutang: getHutangPegawai(item.nama), SisaHutang: getSisaHutangPegawai(item.nama) })); let wsSdm = XLSX.utils.json_to_sheet(sdmData); XLSX.utils.book_append_sheet(wb, wsSdm, "Rekap per SDM"); 
-    // Tambah sheet plafon
     let plafonExport = [];
     Object.keys(dataPlafon).forEach(nama => {
         if (dataPlafon[nama] && typeof dataPlafon[nama] === 'object') {
