@@ -723,6 +723,8 @@ function getPlafonInfo(pegawai, ta) {
 
     let terpakai = directUsage;
     let sisa = plafonTotal - terpakai;
+    let coveredBySpouse = 0;
+    let coveredByMe = 0;
 
     if (spouseNama) {
         let spousePlafon = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
@@ -730,9 +732,6 @@ function getPlafonInfo(pegawai, ta) {
         
         let mySisa = plafonTotal - directUsage;
         let spouseSisa = spousePlafon - spouseDirectUsage;
-
-        let coveredBySpouse = 0;
-        let coveredByMe = 0;
 
         if (mySisa < 0) {
             let myExcess = Math.abs(mySisa);
@@ -750,7 +749,7 @@ function getPlafonInfo(pegawai, ta) {
         sisa = plafonTotal - terpakai;
     }
 
-    return { plafonTotal, terpakai, sisa, spouseNama };
+    return { plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse, coveredByMe, directUsage };
 }
 
 function updateDashboardSummary(filteredData) {
@@ -1440,7 +1439,7 @@ async function saveDatabase(event) {
 }
 
 async function deleteDatabaseById(id) {
-    if (confirm('Yakin ingin menghapus data rujukan ini? Plafon akan dihitung ulang otomatis.')) {
+    if (confirm('Yakin ingin menghapus data rujukan này? Plafon akan dihitung ulang otomatis.')) {
         showLoading(true);
         const { error } = await db.from('database_rujukan').delete().eq('id', id);
         if (error) showToast('Error: ' + error.message, 'danger');
@@ -1556,7 +1555,15 @@ function renderPlafonTable() {
         let barColor = persen >= 100 ? 'bg-danger' : persen >= 80 ? 'bg-warning' : 'bg-success';
         let statusBadge = info.plafonTotal === 0 ? '<span class="badge bg-secondary">Belum Ditetapkan</span>' : info.sisa >= 0 ? (persen >= 80 ? '<span class="badge bg-warning text-dark">Hampir Habis</span>' : '<span class="badge bg-success">Aman</span>') : '<span class="badge bg-danger">Limit Habis</span>';
         let bidang = getBidangByPegawai(p.pegawai);
-        let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>` : '<small class="text-muted">Belum ada plafon</small>';
+        
+        let usageNote = '';
+        if (info.coveredByMe > 0) {
+            usageNote = `<br><small class="text-primary fw-bold">Dipakai Pasangan (${escapeHtml(info.spouseNama)}): ${formatRupiah(info.coveredByMe)}</small>`;
+        } else if (info.coveredBySpouse > 0) {
+            usageNote = `<br><small class="text-info fw-bold">Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)}</small>`;
+        }
+        
+        let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>${usageNote}` : '<small class="text-muted">Belum ada plafon</small>';
         html += `<tr><td>${rowNumber}</td><td class="fw-bold">${escapeHtml(p.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(bidang)}</span></td><td><span class="badge bg-primary">${p.ta}</span></td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td><td class="text-danger fw-bold">${formatRupiah(info.terpakai)}</td><td class="fw-bold ${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td><td>${progressBar}<br>${statusBadge}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-outline-info me-1" onclick="showPlafonDetail('${p.pegawai}', '${p.ta}')" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button> <button class="btn btn-sm btn-warning me-1" onclick="editPlafonPegawai('${p.pegawai}', '${p.ta}')" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deletePlafonPegawai('${p.pegawai}', '${p.ta}')" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
     document.getElementById('plafonTableBody').innerHTML = html || `<tr><td colspan="9" class="text-center text-muted">Belum ada data</td></tr>`;
@@ -1573,18 +1580,21 @@ function showPlafonDetail(pegawaiName, ta) {
     let userClaims = dataDatabase.filter(item => item.pegawai === pegawaiName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
     let html = ''; let totalClaim = 0; 
     let info = getPlafonInfo(pegawaiName, ta);
+    let directClaim = info.directUsage || 0;
+    
     html = `<tr class="table-info"><td colspan="5" class="text-end fw-bold">Total Plafon TA ${ta}:</td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td></tr>`;
     userClaims.forEach((c, idx) => { let cover = Number(c.cover_yayasan) || 0; totalClaim += cover; html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${escapeHtml(c.no_invoice)}</code></td><td>${escapeHtml(c.pasien)}</td><td>${escapeHtml(c.poli)}</td><td class="fw-bold text-danger">${formatRupiah(cover)}</td></tr>`; }); 
     if (userClaims.length === 0) { html += `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim.</td></tr>`; } 
     
     let coverNote = "";
-    if (info.terpakai < totalClaim) {
-        coverNote = ` <span class="text-success">(${formatRupiah(totalClaim - info.terpakai)} dicover pasangan)</span>`;
-    } else if (info.terpakai > totalClaim) {
-        coverNote = ` <span class="text-warning">(${formatRupiah(info.terpakai - totalClaim)} cover pasangan)</span>`;
+    if (info.coveredBySpouse > 0) {
+        coverNote = ` <span class="text-info fw-bold">(Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
+    } else if (info.coveredByMe > 0) {
+        coverNote = ` <span class="text-primary fw-bold">(Dipakai Pasangan: ${formatRupiah(info.coveredByMe)})</span>`;
     }
     
-    html += `<tr class="table-success fw-bold"><td colspan="5" class="text-end">Total Terpakai:${coverNote}</td><td class="text-danger">${formatRupiah(info.terpakai)}</td></tr>`; 
+    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold">Tagihan Sendiri (Klaim Rujukan):</td><td class="fw-bold">${formatRupiah(directClaim)}</td></tr>`;
+    html += `<tr class="table-success fw-bold"><td colspan="5" class="text-end">Total Terpakai (Sistem):${coverNote}</td><td class="text-danger">${formatRupiah(info.terpakai)}</td></tr>`; 
     html += `<tr class="table-warning fw-bold"><td colspan="5" class="text-end">Sisa Plafon:</td><td class="${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td></tr>`; 
     document.getElementById('plafonDetailTableBody').innerHTML = html; showModal('modalPlafonDetail'); 
 }
