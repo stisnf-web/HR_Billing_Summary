@@ -338,8 +338,12 @@
                 <form id="formDatabase" onsubmit="saveDatabase(event)">
                     <input type="hidden" id="dbId">
                     <div class="row g-3">
-                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="dbPegawai" class="form-select" required onchange="autofillBidangPegawai(); checkPlafonAvailability();"><option value="">-- Pilih Pegawai --</option></select></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" readonly required></div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nama Pegawai</label>
+                            <input type="text" list="masterPegawaiList" id="dbPegawai" class="form-control" required onchange="autofillBidangPegawai(); checkPlafonAvailability();" placeholder="Ketik nama atau pilih dari daftar">
+                            <datalist id="masterPegawaiList"></datalist>
+                        </div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" required></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Nama Pasien</label><input type="text" id="dbPasien" class="form-control" required></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Poli / Ruang</label><input type="text" id="dbPoli" class="form-control" required></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Tanggal Rujukan</label><input type="date" id="dbTanggal" class="form-control" required onchange="checkPlafonAvailability()"></div>
@@ -1172,9 +1176,18 @@ function renderDatabaseTable(data) {
 }
 
 function openModalDatabase(mode, id = null) {
-    let dbPegawaiSelect = document.getElementById('dbPegawai');
-    dbPegawaiSelect.innerHTML = '<option value="">-- Pilih Pegawai --</option>';
-    dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { let opt = document.createElement('option'); let cleanNama = String(p.nama || '').trim(); opt.value = cleanNama; opt.text = `${cleanNama} (${p.bidang})`; dbPegawaiSelect.add(opt); });
+    let dbPegawaiInput = document.getElementById('dbPegawai');
+    let masterPegawaiList = document.getElementById('masterPegawaiList');
+    
+    // Populate datalist for Pegawai
+    masterPegawaiList.innerHTML = '';
+    dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { 
+        let opt = document.createElement('option'); 
+        opt.value = p.nama; 
+        opt.text = `${p.nama} (${p.bidang})`; 
+        masterPegawaiList.appendChild(opt); 
+    });
+    
     document.getElementById('formDatabase').reset();
     
     if (mode === 'add') { 
@@ -1190,11 +1203,8 @@ function openModalDatabase(mode, id = null) {
         if (!item) { showToast('Data tidak ditemukan!', 'danger'); return; }
         
         document.getElementById('dbId').value = item.id;
-        let pegawaiName = String(item.pegawai || '').trim();
-        let existsInDropdown = Array.from(dbPegawaiSelect.options).some(opt => opt.value === pegawaiName);
-        if (!existsInDropdown && pegawaiName !== "") { let opt = document.createElement('option'); opt.value = pegawaiName; opt.text = `${pegawaiName} (${item.bidang})`; dbPegawaiSelect.add(opt); }
-        dbPegawaiSelect.value = pegawaiName;
-        document.getElementById('dbBidang').value = item.bidang;
+        document.getElementById('dbPegawai').value = String(item.pegawai || '').trim();
+        document.getElementById('dbBidang').value = item.bidang || '';
         document.getElementById('dbPasien').value = item.pasien;
         document.getElementById('dbPoli').value = item.poli;
         document.getElementById('dbTanggal').value = parseExcelDate(item.tanggal);
@@ -1209,7 +1219,13 @@ function openModalDatabase(mode, id = null) {
     showModal('modalDatabase');
 }
 
-function autofillBidangPegawai() { let namaPegawai = document.getElementById('dbPegawai').value.trim(); let pegawaiObj = dataMasterPegawai.find(p => String(p.nama).trim() === namaPegawai); document.getElementById('dbBidang').value = pegawaiObj ? pegawaiObj.bidang : ''; }
+function autofillBidangPegawai() { 
+    let namaPegawai = document.getElementById('dbPegawai').value.trim(); 
+    let pegawaiObj = dataMasterPegawai.find(p => String(p.nama).trim().toUpperCase() === namaPegawai.toUpperCase()); 
+    if (pegawaiObj) {
+        document.getElementById('dbBidang').value = pegawaiObj.bidang; 
+    }
+}
 
 function checkPlafonAvailability() {
     let pegawai = document.getElementById('dbPegawai').value.trim();
