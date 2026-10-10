@@ -1346,51 +1346,40 @@ function checkPlafonAvailability() {
     
     let usageMap = getPlafonUsageByTA();
     let directUsage = (usageMap[pegawai] && usageMap[pegawai][ta]) ? usageMap[pegawai][ta] : 0;
-    let projectedUsage = directUsage - currentSavedCover + coverInput;
+    let myUsage = directUsage - currentSavedCover;
+    let myPlafonAvail = Math.max(0, info.plafonTotal - myUsage);
+    
+    let coverByMe = Math.min(coverInput, myPlafonAvail);
+    let coverBySpouse = 0;
+    let pribadi = coverInput - coverByMe;
     
     let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim() === String(pegawai).trim());
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseNama = spouseInfo ? spouseInfo.nama.trim() : null;
     
-    let plafonTotal = info.plafonTotal;
-    let sisa = plafonTotal - projectedUsage;
-    let spouseNote = "";
-    
-    if (spouseNama) {
+    if (spouseNama && pribadi > 0) {
         let spousePlafon = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
         let spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
+        let spouseAvail = Math.max(0, spousePlafon - spouseDirectUsage);
         
-        if (sisa < 0) {
-            let myExcess = Math.abs(sisa);
-            let spouseAvail = Math.max(0, spousePlafon - spouseDirectUsage);
-            let cover = Math.min(myExcess, spouseAvail);
-            sisa += cover;
-            if (cover > 0) spouseNote = ` (${formatRupiah(cover)} dicover pasangan)`;
-        } else {
-            let spouseExcess = Math.max(0, spouseDirectUsage - spousePlafon);
-            let myAvail = sisa;
-            let cover = Math.min(spouseExcess, myAvail);
-            sisa -= cover;
-            if (cover > 0) spouseNote = ` (${formatRupiah(cover)} cover pasangan)`;
-        }
+        coverBySpouse = Math.min(pribadi, spouseAvail);
+        pribadi -= coverBySpouse;
     }
     
-    if (plafonTotal === 0 && (!spouseNama || (spousePlafon === 0))) {
-        infoEl.className = 'text-warning fw-bold';
-        infoEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Plafon TA ${ta} belum ditetapkan. Cover akan menjadi hutang pribadi jika melebihi 0.`;
-    } else if (sisa < 0) {
-        infoEl.className = 'text-danger fw-bold';
-        infoEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Sisa plafon (termasuk pasangan) MINUS ${formatRupiah(Math.abs(sisa))}. Kelebihan ini akan jadi hutang pribadi!`;
-    } else {
-        infoEl.className = 'text-success fw-bold';
-        infoEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Sisa plafon TA ${ta}: ${formatRupiah(sisa)}${spouseNote}`;
-    }
+    document.getElementById('dbPribadi').value = pribadi;
+    
+    let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
+    if (coverBySpouse > 0) infoText += `<br><span class="text-primary">Cover Pasangan (${escapeHtml(spouseNama)}): ${formatRupiah(coverBySpouse)}</span>`;
+    if (pribadi > 0) infoText += `<br><span class="text-danger">Biaya Pribadi / Hutang: ${formatRupiah(pribadi)}</span>`;
+    
+    infoEl.className = 'small mt-1';
+    infoEl.innerHTML = infoText;
 }
 
 function calcSubTotal() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = tagihan * 0.10; document.getElementById('dbDiskon').value = diskon; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; document.getElementById('dbCover').value = subtotal; calcBiayaPribadi(); checkPlafonAvailability(); }
 function calcSubTotalManual() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = parseFloat(document.getElementById('dbDiskon').value) || 0; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; let currentCover = parseFloat(document.getElementById('dbCover').value) || 0; if (currentCover === 0 || currentCover > subtotal) { document.getElementById('dbCover').value = subtotal; } calcBiayaPribadi(); checkPlafonAvailability(); }
-function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let cover = parseFloat(document.getElementById('dbCover').value) || 0; if (cover > subtotal) cover = subtotal; if (cover < 0) cover = 0; let pribadi = subtotal - cover; document.getElementById('dbCover').value = cover; document.getElementById('dbPribadi').value = pribadi; }
+function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let cover = parseFloat(document.getElementById('dbCover').value) || 0; if (cover > subtotal) cover = subtotal; if (cover < 0) cover = 0; let pribadi = subtotal - cover; document.getElementById('dbCover').value = cover; document.getElementById('dbPribadi').value = pribadi; checkPlafonAvailability(); }
 
 async function saveDatabase(event) {
     event.preventDefault();
