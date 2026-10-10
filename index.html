@@ -113,6 +113,22 @@
                 </div>
             </div>
         </div>
+        
+        <!-- GRAFIK BARU: PEMBIAYAAN & HUTANG -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-7">
+                <div class="card card-stat p-4 h-100">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-scale-balanced text-success me-2"></i> Analisis Pembiayaan per Tahun Ajaran <small class="text-muted fw-normal">(Yayasan vs Pribadi)</small></h5>
+                    <canvas id="fundingChart" height="140"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card card-stat p-4 h-100">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-money-bill-transfer text-success me-2"></i> Top 10 Hutang SDM <small class="text-muted fw-normal">(Sisa Hutang Terbesar)</small></h5>
+                    <canvas id="debtChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="tab-master" class="content-section d-none">
@@ -134,7 +150,14 @@
                         </div>
                     </div>
                     <div class="row g-2 mb-3">
-                        <div class="col-md-6"><input type="text" id="searchMasterPegawai" class="form-control form-control-sm" placeholder="Cari NIP, nama, bidang, atau departemen..." onkeyup="currentPageMasterPegawai=1; renderMasterPegawaiTable();"></div>
+                        <div class="col-md-5"><input type="text" id="searchMasterPegawai" class="form-control form-control-sm" placeholder="Cari NIP, nama, bidang, atau departemen..." onkeyup="currentPageMasterPegawai=1; renderMasterPegawaiTable();"></div>
+                        <div class="col-md-4">
+                            <select id="filterMasterPegawaiStatus" class="form-select form-select-sm" onchange="currentPageMasterPegawai=1; renderMasterPegawaiTable();">
+                                <option value="SEMUA">Semua Status</option>
+                                <option value="AKTIF">Aktif Saja</option>
+                                <option value="TIDAK AKTIF">Tidak Aktif Saja</option>
+                            </select>
+                        </div>
                         <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="masterPegawaiPageSize" class="form-select form-select-sm" onchange="currentPageMasterPegawai=1; renderMasterPegawaiTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></div></div>
                     </div>
                     <div class="table-responsive" style="min-height: 350px;">
@@ -194,7 +217,7 @@
                     <button class="btn btn-success btn-sm" onclick="openModalDatabase('add')"><i class="fa-solid fa-plus me-1"></i> Tambah Data</button>
                 </div>
             </div>
-            <div class="alert alert-info py-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> <strong>Info:</strong> Saat data rujukan disimpan, sistem otomatis mengurangi jatah plafon kesehatan pegawai sesuai Tahun Ajaran tanggal rujukan.</div>
+            <div class="alert alert-info py-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> <strong>Info:</strong> Saat data rujukan disimpan, sistem otomatis mengurangi jatah plafon kesehatan pegawai sesuai Tahun Ajaran tanggal rujukan. Data yang sama persis (duplikat) akan otomatis diabaikan.</div>
             <div class="mb-3"><input type="text" id="searchDatabase" class="form-control" placeholder="Cari nama pegawai, pasien, atau no invoice..." onkeyup="filterDatabase()"></div>
             <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
                 <table class="table table-striped table-hover align-middle small" id="tableDatabase">
@@ -315,7 +338,7 @@
             <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalDatabaseTitle">Tambah Data Rujukan</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <form id="formDatabase" onsubmit="saveDatabase(event)">
-                    <input type="hidden" id="dbIndex">
+                    <input type="hidden" id="dbId">
                     <div class="row g-3">
                         <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="dbPegawai" class="form-select" required onchange="autofillBidangPegawai(); checkPlafonAvailability();"><option value="">-- Pilih Pegawai --</option></select></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" readonly required></div>
@@ -355,7 +378,8 @@
                     <div class="mb-3"><label class="form-label fw-bold">Nama Pegawai</label><input type="text" id="mpNama" class="form-control" required></div>
                     <div class="mb-3"><label class="form-label fw-bold">Bidang / Unit Kerja</label><select id="mpBidang" class="form-select" required></select></div>
                     <div class="mb-3"><label class="form-label fw-bold">Departemen</label><select id="mpDept" class="form-select" required></select></div>
-                    <div class="mb-3"><label class="form-label fw-bold">Status Kepegawaian</label><select id="mpStatus" class="form-select"><option value="AKTIF">Aktif</option><option value="TIDAK AKTIF">Tidak Aktif</option></select></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Status Kepegawaian</label><select id="mpStatus" class="form-select" onchange="toggleTanggalNonaktif()"><option value="AKTIF">Aktif</option><option value="TIDAK AKTIF">Tidak Aktif</option></select></div>
+                    <div class="mb-3" id="divTanggalNonaktif" style="display: none;"><label class="form-label fw-bold">Tanggal Non-Aktif</label><input type="date" id="mpTanggalNonaktif" class="form-control"><small class="text-muted">Digunakan untuk menghentikan plafon otomatis di tahun ajaran berikutnya.</small></div>
                     <div class="text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success">Simpan</button></div>
                 </form>
             </div>
@@ -491,6 +515,8 @@ let dataCicilan = [];
 
 let tahunAjaranChartInstance = null;
 let costRatioChartInstance = null;
+let fundingChartInstance = null;
+let debtChartInstance = null;
 let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, currentPageCicilan = 1;
 let pendingImportData = null;
 let supabaseChannels = [];
@@ -516,7 +542,6 @@ function updateCloudStatus(status, message) {
     const el = document.getElementById('cloudStatusSidebar');
     if (!el) return;
     let cls = status === 'online' ? 'online' : status === 'offline' ? 'offline' : 'syncing';
-    let icon = status === 'online' ? 'fa-cloud' : status === 'offline' ? 'fa-cloud-bolt' : 'fa-arrows-rotate';
     el.innerHTML = `<span class="cloud-status ${cls}"><span class="pulse-dot"></span> ${message}</span>`;
 }
 
@@ -687,6 +712,7 @@ function updateDashboardSummary(filteredData) {
 }
 
 function updateCharts(subTotal, diskon) {
+    // 1. Chart Tagihan per TA
     let taMap = {};
     dataDatabase.forEach(item => { let ta = getTahunAjaran(item.tanggal); if (ta !== "Unknown") taMap[ta] = (taMap[ta] || 0) + (Number(item.tagihan) || 0); });
     let sortedTa = Object.keys(taMap).sort();
@@ -700,11 +726,69 @@ function updateCharts(subTotal, diskon) {
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Rp ' + (v/1000000) + ' Jt' } } }, onClick: (event, elements) => { if (elements.length > 0 && taLabels.length > 0) { showChartDetail(taLabels[elements[0].index].replace('TA ', '')); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
     });
 
+    // 2. Chart Efisiensi Biaya
     const ctxRatio = document.getElementById('costRatioChart');
     if (costRatioChartInstance) costRatioChartInstance.destroy();
     costRatioChartInstance = new Chart(ctxRatio.getContext('2d'), {
         type: 'doughnut', data: { labels: ['Sub Total', 'Diskon'], datasets: [{ data: [subTotal || 1, diskon || 0], backgroundColor: ['#198754', '#ffc107'] }] },
         options: { responsive: true, plugins: { legend: { position: 'bottom' } }, onClick: (event, elements) => { if (elements.length > 0) { showChartDetail(null); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
+    });
+
+    // 3. Chart Pembiayaan (Yayasan vs Pribadi per TA)
+    let fundingTaMap = {};
+    dataDatabase.forEach(item => {
+        let ta = getTahunAjaran(item.tanggal);
+        if (ta !== "Unknown") {
+            if (!fundingTaMap[ta]) fundingTaMap[ta] = { yayasan: 0, pribadi: 0 };
+            fundingTaMap[ta].yayasan += Number(item.cover_yayasan) || 0;
+            fundingTaMap[ta].pribadi += Number(item.biaya_pribadi) || 0;
+        }
+    });
+    let fundingLabels = Object.keys(fundingTaMap).sort();
+    let fundingYayasan = fundingLabels.map(ta => fundingTaMap[ta].yayasan);
+    let fundingPribadi = fundingLabels.map(ta => fundingTaMap[ta].pribadi);
+    
+    const ctxFunding = document.getElementById('fundingChart');
+    if (fundingChartInstance) fundingChartInstance.destroy();
+    fundingChartInstance = new Chart(ctxFunding.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: fundingLabels.length ? fundingLabels.map(ta => `TA ${ta}`) : ['No Data'],
+            datasets: [
+                { label: 'Cover Yayasan', data: fundingYayasan.length ? fundingYayasan : [0], backgroundColor: '#198754', borderRadius: 6 },
+                { label: 'Biaya Pribadi', data: fundingPribadi.length ? fundingPribadi : [0], backgroundColor: '#dc3545', borderRadius: 6 }
+            ]
+        },
+        options: { 
+            responsive: true, 
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => 'Rp ' + (v/1000000) + ' Jt' } } }, 
+            plugins: { legend: { position: 'bottom' } } 
+        }
+    });
+
+    // 4. Chart Top 10 Hutang SDM
+    let debtList = dataMasterPegawai.map(p => ({
+        nama: p.nama,
+        hutang: getSisaHutangPegawai(p.nama)
+    })).filter(p => p.hutang > 0).sort((a, b) => b.hutang - a.hutang).slice(0, 10);
+
+    let debtLabels = debtList.map(d => d.nama);
+    let debtValues = debtList.map(d => d.hutang);
+
+    const ctxDebt = document.getElementById('debtChart');
+    if (debtChartInstance) debtChartInstance.destroy();
+    debtChartInstance = new Chart(ctxDebt.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: debtLabels.length ? debtLabels : ['No Data'],
+            datasets: [{ label: 'Sisa Hutang (Rp)', data: debtValues.length ? debtValues : [0], backgroundColor: '#dc3545', borderRadius: 6 }]
+        },
+        options: { 
+            indexAxis: 'y', 
+            responsive: true, 
+            plugins: { legend: { display: false } }, 
+            scales: { x: { beginAtZero: true, ticks: { callback: v => 'Rp ' + (v/1000000) + ' Jt' } } } 
+        }
     });
 }
 
@@ -730,7 +814,19 @@ function renderMasterAll() { renderMasterPegawaiTable(); renderMasterBidangTable
 
 function renderMasterPegawaiTable() {
     let searchKeyword = (document.getElementById('searchMasterPegawai')?.value || '').toLowerCase();
-    let filteredPegawai = dataMasterPegawai.filter(p => (String(p.nip || '').toLowerCase().includes(searchKeyword)) || (String(p.nama || '').toLowerCase().includes(searchKeyword)) || (String(p.bidang || '').toLowerCase().includes(searchKeyword)) || (String(p.departemen || '').toLowerCase().includes(searchKeyword)));
+    let statusFilter = (document.getElementById('filterMasterPegawaiStatus')?.value || 'SEMUA').toUpperCase();
+    
+    let filteredPegawai = dataMasterPegawai.filter(p => {
+        let matchSearch = (String(p.nip || '').toLowerCase().includes(searchKeyword)) || 
+                          (String(p.nama || '').toLowerCase().includes(searchKeyword)) || 
+                          (String(p.bidang || '').toLowerCase().includes(searchKeyword)) || 
+                          (String(p.departemen || '').toLowerCase().includes(searchKeyword));
+        
+        let matchStatus = (statusFilter === 'SEMUA') || (String(p.status || '').toUpperCase() === statusFilter);
+        
+        return matchSearch && matchStatus;
+    });
+    
     let pageSize = parseInt(document.getElementById('masterPegawaiPageSize')?.value) || 15;
     let totalRows = filteredPegawai.length, totalPages = Math.ceil(totalRows / pageSize) || 1;
     if (currentPageMasterPegawai > totalPages) currentPageMasterPegawai = totalPages;
@@ -832,7 +928,12 @@ function deduplicateData(arr, keys) {
     if (!arr || arr.length === 0) return arr;
     const map = new Map();
     arr.forEach(item => {
-        let compositeKey = keys.map(k => String(item[k] || '').trim().toLowerCase()).join('|||');
+        let compositeKey = keys.map(k => {
+            let val = item[k];
+            if (typeof val === 'string') val = val.trim().toUpperCase();
+            if (k === 'tagihan' || k === 'subtotal' || k === 'total_plafon') val = Number(val) || 0;
+            return String(val);
+        }).join('|||');
         map.set(compositeKey, item);
     });
     return Array.from(map.values());
@@ -859,9 +960,33 @@ async function confirmImport() {
             const { error } = await db.from('master_departemen').upsert(data, { onConflict: 'nama_departemen' });
             if (error) errorMsg = error.message;
         } else if (type === 'database_rujukan') {
-            data = deduplicateData(data, ['no_invoice']);
-            const { error } = await db.from('database_rujukan').upsert(data, { onConflict: 'no_invoice' });
+            let uniqueExcelData = deduplicateData(data, ['no_invoice', 'tanggal', 'pegawai', 'pasien', 'poli', 'tagihan']);
+            let newData = uniqueExcelData.filter(newItem => {
+                return !dataDatabase.some(dbItem => 
+                    String(dbItem.no_invoice || '').toUpperCase() === String(newItem.no_invoice || '').toUpperCase() &&
+                    String(dbItem.tanggal || '') === String(newItem.tanggal || '') &&
+                    String(dbItem.pegawai || '').toUpperCase() === String(newItem.pegawai || '').toUpperCase() &&
+                    String(dbItem.pasien || '').toUpperCase() === String(newItem.pasien || '').toUpperCase() &&
+                    String(dbItem.poli || '').toUpperCase() === String(newItem.poli || '').toUpperCase() &&
+                    Number(dbItem.tagihan) === Number(newItem.tagihan)
+                );
+            });
+
+            if (newData.length === 0) {
+                showToast('Semua data dalam Excel adalah duplikat. Tidak ada data baru yang diimpor.', 'warning');
+                pendingImportData = null;
+                showLoading(false);
+                return;
+            }
+
+            const { error } = await db.from('database_rujukan').insert(newData);
             if (error) errorMsg = error.message;
+            
+            let dupCount = data.length - newData.length;
+            data = newData;
+            if (dupCount > 0 && !errorMsg) {
+                setTimeout(() => showToast(`${dupCount} data duplikat diabaikan.`, 'warning'), 1500);
+            }
         } else if (type === 'plafon') {
             data = deduplicateData(data, ['pegawai_nama', 'tahun_ajaran']);
             const { error } = await db.from('plafon_kesehatan').upsert(data, { onConflict: 'pegawai_nama,tahun_ajaran' });
@@ -878,12 +1003,44 @@ async function confirmImport() {
     showLoading(false);
 }
 
+function toggleTanggalNonaktif() {
+    const status = document.getElementById('mpStatus').value;
+    const divTgl = document.getElementById('divTanggalNonaktif');
+    divTgl.style.display = status === 'TIDAK AKTIF' ? 'block' : 'none';
+}
+
 function openModalMasterPegawai(mode, nipKey = null) {
     let bidangOpt = ''; dataMasterBidang.forEach(b => bidangOpt += `<option value="${b.nama_bidang.trim()}">${b.nama_bidang.trim()}</option>`); document.getElementById('mpBidang').innerHTML = bidangOpt;
     let deptOpt = ''; dataMasterDept.forEach(d => deptOpt += `<option value="${d.nama_departemen.trim()}">${d.nama_departemen.trim()}</option>`); document.getElementById('mpDept').innerHTML = deptOpt;
     document.getElementById('formMasterPegawai').reset();
-    if (mode === 'add') { document.getElementById('modalMasterPegawaiTitle').innerText = "Tambah Pegawai Baru"; document.getElementById('mpOriginalNip').value = ''; }
-    else { document.getElementById('modalMasterPegawaiTitle').innerText = "Edit Data Pegawai"; let p = dataMasterPegawai.find(x => x.nip === nipKey); if (p) { document.getElementById('mpOriginalNip').value = p.nip; document.getElementById('mpNip').value = p.nip; document.getElementById('mpNama').value = p.nama; document.getElementById('mpBidang').value = p.bidang; document.getElementById('mpDept').value = p.departemen; document.getElementById('mpStatus').value = p.status; } }
+    
+    const statusSelect = document.getElementById('mpStatus');
+    const divTglNonaktif = document.getElementById('divTanggalNonaktif');
+    
+    statusSelect.onchange = function() {
+        divTglNonaktif.style.display = this.value === 'TIDAK AKTIF' ? 'block' : 'none';
+    };
+
+    if (mode === 'add') { 
+        document.getElementById('modalMasterPegawaiTitle').innerText = "Tambah Pegawai Baru"; 
+        document.getElementById('mpOriginalNip').value = ''; 
+        divTglNonaktif.style.display = 'none';
+        document.getElementById('mpTanggalNonaktif').value = '';
+    }
+    else { 
+        document.getElementById('modalMasterPegawaiTitle').innerText = "Edit Data Pegawai"; 
+        let p = dataMasterPegawai.find(x => x.nip === nipKey); 
+        if (p) { 
+            document.getElementById('mpOriginalNip').value = p.nip; 
+            document.getElementById('mpNip').value = p.nip; 
+            document.getElementById('mpNama').value = p.nama; 
+            document.getElementById('mpBidang').value = p.bidang; 
+            document.getElementById('mpDept').value = p.departemen; 
+            document.getElementById('mpStatus').value = p.status; 
+            divTglNonaktif.style.display = p.status === 'TIDAK AKTIF' ? 'block' : 'none';
+            document.getElementById('mpTanggalNonaktif').value = p.tanggal_nonaktif ? parseExcelDate(p.tanggal_nonaktif) : '';
+        } 
+    }
     showModal('modalMasterPegawai');
 }
 
@@ -895,15 +1052,17 @@ async function saveMasterPegawai(event) {
     let bidang = document.getElementById('mpBidang').value;
     let departemen = document.getElementById('mpDept').value;
     let status = document.getElementById('mpStatus').value;
+    let tanggalNonaktif = status === 'TIDAK AKTIF' ? (document.getElementById('mpTanggalNonaktif').value || null) : null;
     if (!nip || !nama) { showToast('NIP dan Nama wajib diisi!', 'warning'); return; }
 
+    let payload = { nip, nama, bidang, departemen, status, tanggal_nonaktif: tanggalNonaktif };
     showLoading(true);
     try {
         if (origNip === '') {
-            const { error } = await db.from('master_pegawai').insert({ nip, nama, bidang, departemen, status });
+            const { error } = await db.from('master_pegawai').insert(payload);
             if (error) throw error;
         } else {
-            const { error } = await db.from('master_pegawai').update({ nip, nama, bidang, departemen, status }).eq('nip', origNip);
+            const { error } = await db.from('master_pegawai').update(payload).eq('nip', origNip);
             if (error) throw error;
         }
         await loadInitialData();
@@ -1004,30 +1163,35 @@ async function deleteMasterDept(d) {
 function renderDatabaseTable(data) {
     let html = '';
     data.forEach((item, index) => {
-        let realIndex = dataDatabase.indexOf(item);
-        if (realIndex === -1) return;
         let cover = Number(item.cover_yayasan) || 0;
         let pribadi = Number(item.biaya_pribadi) || 0;
         let badgeKet = cover > 0 && pribadi > 0 ? `<span class="badge bg-success">Y: ${formatRupiah(cover)}</span> <span class="badge bg-warning text-dark">P: ${formatRupiah(pribadi)}</span>` : cover > 0 ? `<span class="badge bg-success">${formatRupiah(cover)}</span>` : `<span class="badge bg-warning text-dark">${formatRupiah(pribadi)}</span>`;
         let formattedDate = parseExcelDate(item.tanggal);
         let ta = getTahunAjaran(formattedDate);
-        html += `<tr><td>${index + 1}</td><td class="fw-bold">${item.pegawai}</td><td><span class="badge bg-secondary">${item.bidang || '-'}</span></td><td>${item.pasien}</td><td>${item.poli}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${item.no_invoice}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseByIndex(${realIndex})" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning" onclick="openModalDatabase('edit', ${realIndex})" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteDatabaseByIndex(${realIndex})" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        html += `<tr><td>${index + 1}</td><td class="fw-bold">${item.pegawai}</td><td><span class="badge bg-secondary">${item.bidang || '-'}</span></td><td>${item.pasien}</td><td>${item.poli}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${item.no_invoice}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseById('${item.id}')" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning" onclick="openModalDatabase('edit', '${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteDatabaseById('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
     document.getElementById('dbTableBody').innerHTML = html || `<tr><td colspan="13" class="text-center text-muted">Belum ada data rujukan</td></tr>`;
 }
 
-function openModalDatabase(mode, indexKey = null) {
+function openModalDatabase(mode, id = null) {
     let dbPegawaiSelect = document.getElementById('dbPegawai');
     dbPegawaiSelect.innerHTML = '<option value="">-- Pilih Pegawai --</option>';
     dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { let opt = document.createElement('option'); let cleanNama = String(p.nama || '').trim(); opt.value = cleanNama; opt.text = `${cleanNama} (${p.bidang})`; dbPegawaiSelect.add(opt); });
     document.getElementById('formDatabase').reset();
-    if (mode === 'add') { document.getElementById('modalDatabaseTitle').innerText = "Tambah Data Rujukan"; document.getElementById('dbIndex').value = ''; document.getElementById('dbTanggal').value = new Date().toISOString().split('T')[0]; document.getElementById('dbTagihan').value = 0; calcSubTotal(); }
-    else {
+    
+    if (mode === 'add') { 
+        document.getElementById('modalDatabaseTitle').innerText = "Tambah Data Rujukan"; 
+        document.getElementById('dbId').value = ''; 
+        document.getElementById('dbTanggal').value = new Date().toISOString().split('T')[0]; 
+        document.getElementById('dbTagihan').value = 0; 
+        calcSubTotal(); 
+    } else {
         document.getElementById('modalDatabaseTitle').innerText = "Edit Data Rujukan";
-        let realIndex = parseInt(indexKey);
-        if (isNaN(realIndex) || realIndex < 0 || realIndex >= dataDatabase.length) { showToast('Data tidak ditemukan!', 'danger'); return; }
-        document.getElementById('dbIndex').value = realIndex;
-        let item = dataDatabase[realIndex];
+        if (!id) { showToast('Data tidak ditemukan!', 'danger'); return; }
+        let item = dataDatabase.find(x => x.id === id);
+        if (!item) { showToast('Data tidak ditemukan!', 'danger'); return; }
+        
+        document.getElementById('dbId').value = item.id;
         let pegawaiName = String(item.pegawai || '').trim();
         let existsInDropdown = Array.from(dbPegawaiSelect.options).some(opt => opt.value === pegawaiName);
         if (!existsInDropdown && pegawaiName !== "") { let opt = document.createElement('option'); opt.value = pegawaiName; opt.text = `${pegawaiName} (${item.bidang})`; dbPegawaiSelect.add(opt); }
@@ -1059,11 +1223,11 @@ function checkPlafonAvailability() {
     
     let ta = getTahunAjaran(tanggal);
     let info = getPlafonInfo(pegawai, ta);
-    let editingIdx = document.getElementById('dbIndex').value;
+    let editingId = document.getElementById('dbId').value;
     
     let terpakai = info.terpakai;
-    if (editingIdx !== '') {
-        let editingItem = dataDatabase[parseInt(editingIdx)];
+    if (editingId !== '') {
+        let editingItem = dataDatabase.find(x => x.id === editingId);
         if (editingItem && editingItem.pegawai === pegawai && getTahunAjaran(editingItem.tanggal) === ta) {
             terpakai -= Number(editingItem.cover_yayasan) || 0;
         }
@@ -1089,7 +1253,7 @@ function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById(
 
 async function saveDatabase(event) {
     event.preventDefault();
-    let index = document.getElementById('dbIndex').value;
+    let id = document.getElementById('dbId').value;
     let pegawai = document.getElementById('dbPegawai').value.trim();
     let bidang = document.getElementById('dbBidang').value.trim();
     let tagihanBruto = parseFloat(document.getElementById('dbTagihan').value) || 0;
@@ -1097,25 +1261,43 @@ async function saveDatabase(event) {
     let cover = parseFloat(document.getElementById('dbCover').value) || 0;
     let pribadi = parseFloat(document.getElementById('dbPribadi').value) || 0;
     let invoice = document.getElementById('dbInvoice').value.trim().toUpperCase();
+    let pasien = document.getElementById('dbPasien').value.toUpperCase();
+    let poli = document.getElementById('dbPoli').value.toUpperCase();
+    let tanggal = document.getElementById('dbTanggal').value;
+    
     if (!pegawai || !bidang || !invoice) { showToast('Semua field wajib diisi!', 'warning'); return; }
+
+    let isDuplicate = dataDatabase.some(dbItem => 
+        dbItem.id !== id && 
+        String(dbItem.no_invoice || '').toUpperCase() === invoice &&
+        String(dbItem.tanggal || '') === tanggal &&
+        String(dbItem.pegawai || '').toUpperCase() === pegawai.toUpperCase() &&
+        String(dbItem.pasien || '').toUpperCase() === pasien &&
+        String(dbItem.poli || '').toUpperCase() === poli &&
+        Number(dbItem.tagihan) === tagihanBruto
+    );
+
+    if (isDuplicate) {
+        showToast('Data rujukan ini SUDAH ADA (duplikat). Tidak bisa disimpan.', 'danger');
+        return;
+    }
 
     let payload = {
         no_invoice: invoice, pegawai, bidang,
-        pasien: document.getElementById('dbPasien').value.toUpperCase(),
-        poli: document.getElementById('dbPoli').value.toUpperCase(),
-        tanggal: document.getElementById('dbTanggal').value,
+        pasien: pasien,
+        poli: poli,
+        tanggal: tanggal,
         tagihan: tagihanBruto, diskon: tagihanBruto - subtotal, subtotal: subtotal,
         cover_yayasan: cover, biaya_pribadi: pribadi
     };
 
     showLoading(true);
     try {
-        if (index === '') {
+        if (id === '') {
             const { error } = await db.from('database_rujukan').insert(payload);
             if (error) throw error;
         } else {
-            let itemId = dataDatabase[index].id;
-            const { error } = await db.from('database_rujukan').update(payload).eq('id', itemId);
+            const { error } = await db.from('database_rujukan').update(payload).eq('id', id);
             if (error) throw error;
         }
         await loadInitialData();
@@ -1126,27 +1308,25 @@ async function saveDatabase(event) {
     }
     showLoading(false);
 }
-async function deleteDatabaseByIndex(indexKey) {
+
+async function deleteDatabaseById(id) {
     if (confirm('Yakin ingin menghapus data rujukan ini? Plafon akan dihitung ulang otomatis.')) {
-        let idx = parseInt(indexKey);
-        if (!isNaN(idx) && idx > -1 && idx < dataDatabase.length) {
-            showLoading(true);
-            let itemId = dataDatabase[idx].id;
-            const { error } = await db.from('database_rujukan').delete().eq('id', itemId);
-            if (error) showToast('Error: ' + error.message, 'danger');
-            else { await loadInitialData(); showToast('Data rujukan dihapus. Plafon diperbarui.'); }
-            showLoading(false);
-        }
+        showLoading(true);
+        const { error } = await db.from('database_rujukan').delete().eq('id', id);
+        if (error) showToast('Error: ' + error.message, 'danger');
+        else { await loadInitialData(); showToast('Data rujukan dihapus. Plafon diperbarui.'); }
+        showLoading(false);
     }
 }
-function viewDatabaseByIndex(indexKey) {
-    let idx = parseInt(indexKey);
-    if (isNaN(idx) || idx < 0 || idx >= dataDatabase.length) return;
-    let item = dataDatabase[idx];
+
+function viewDatabaseById(id) {
+    let item = dataDatabase.find(x => x.id === id);
+    if (!item) return;
     let info = getPlafonInfo(item.pegawai, getTahunAjaran(item.tanggal));
     document.getElementById('viewContent').innerHTML = `<p><strong>Nama Pegawai:</strong> ${item.pegawai}</p><p><strong>Bidang:</strong> ${item.bidang}</p><p><strong>Nama Pasien:</strong> ${item.pasien}</p><p><strong>Poli / Ruang:</strong> ${item.poli}</p><p><strong>Tanggal Rujukan:</strong> ${parseExcelDate(item.tanggal)}</p><p><strong>Tahun Ajaran:</strong> ${getTahunAjaran(item.tanggal)}</p><p><strong>No Invoice:</strong> ${item.no_invoice}</p><p><strong>Tagihan NF:</strong> ${formatRupiah(item.tagihan)}</p><p><strong>Sub Total:</strong> ${formatRupiah(item.subtotal)}</p><p><strong>Cover Yayasan:</strong> ${formatRupiah(item.cover_yayasan || 0)}</p><p><strong>Biaya Pribadi (Hutang):</strong> ${formatRupiah(item.biaya_pribadi || 0)}</p><hr><p class="small"><strong>Info Plafon TA ${getTahunAjaran(item.tanggal)}:</strong><br>Total Plafon: ${formatRupiah(info.plafonTotal)}<br>Terpakai: ${formatRupiah(info.terpakai)}<br>Sisa: ${formatRupiah(info.sisa)}</p>`;
     showModal('modalView');
 }
+
 function filterDatabase() { let keyword = document.getElementById('searchDatabase').value.toLowerCase(); let filtered = getFilteredData().filter(item => (String(item.pegawai || '').toLowerCase().includes(keyword)) || (String(item.pasien || '').toLowerCase().includes(keyword)) || (String(item.no_invoice || '').toLowerCase().includes(keyword))); renderDatabaseTable(filtered); }
 function downloadTemplateDatabase() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", NAMA_PASIEN: "CONTOH PASIEN", POLI_RUANG: "POLI ANAK", TANGGAL_RUJUKAN: "2026-01-01", NO_INVOICE: "INV001", TAGIHAN_NF: 1000000, DISKON: 0, SUB_TOTAL: 1000000, COVER_YAYASAN: 1000000, BIAYA_PRIBADI: 0}]); XLSX.utils.book_append_sheet(wb, ws, "Template Database"); XLSX.writeFile(wb, "Template_Import_Database_Rujukan.xlsx"); showToast('Template berhasil diunduh!'); }
 
@@ -1181,7 +1361,7 @@ async function importDatabaseExcel(event) {
                 
                 pendingImportData = { type: 'database_rujukan', data: insertData };
                 let previewData = insertData.slice(0, 50).map(d => ({ PEGAWAI: d.pegawai, BIDANG: d.bidang, PASIEN: d.pasien, TGL: d.tanggal, TA: getTahunAjaran(d.tanggal), INVOICE: d.no_invoice, TAGIHAN: d.tagihan, COVER: d.cover_yayasan }));
-                showPreviewImport('Preview Import Database Rujukan', `${insertData.length} data rujukan akan diimpor. Data dengan No Invoice sama akan ditimpa. Plafon akan otomatis tersinkronisasi per tahun ajaran.`, previewData, Object.keys(previewData[0] || {PEGAWAI:''}));
+                showPreviewImport('Preview Import Database Rujukan', `${insertData.length} data rujukan akan diproses. Data duplikat (yang sama persis) akan otomatis diabaikan.`, previewData, Object.keys(previewData[0] || {PEGAWAI:''}));
             } else { showToast('File kosong.', 'warning'); }
         } catch(err) { showToast('Gagal mengimpor file: ' + err.message, 'danger'); }
         event.target.value = '';
@@ -1199,6 +1379,10 @@ function renderPlafonTable() {
     let allPegawai = [...new Set([...Object.keys(dataPlafon), ...dataMasterPegawai.map(x => x.nama), ...dataDatabase.map(x => x.pegawai)])].sort();
     
     allPegawai.forEach(pegawai => {
+        let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim() === String(pegawai).trim());
+        let isNonAktif = pegawaiInfo && pegawaiInfo.status === 'TIDAK AKTIF';
+        let nonAktifTa = isNonAktif && pegawaiInfo.tanggal_nonaktif ? getTahunAjaran(pegawaiInfo.tanggal_nonaktif) : null;
+
         let tas = new Set();
         if (dataPlafon[pegawai] && typeof dataPlafon[pegawai] === 'object') {
             Object.keys(dataPlafon[pegawai]).forEach(ta => tas.add(ta));
@@ -1214,6 +1398,9 @@ function renderPlafonTable() {
         }
         
         tas.forEach(ta => {
+            if (isNonAktif && nonAktifTa && ta > nonAktifTa) {
+                return; 
+            }
             plafonRows.push({ pegawai, ta });
         });
     });
@@ -1478,7 +1665,7 @@ async function showCicilanDetail(cicilanId) {
     if (!c) return; 
     document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai; 
     let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel, Estimasi ' + c.tenor + ' bulan)' : 'Langsung Lunas'; 
-    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
+    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1'><strong>Status:</strong> ' + c.status + '</p></div>'; 
     document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
     document.getElementById('bayarCicilanId').value = c.id; 
     document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0]; 
@@ -1696,7 +1883,8 @@ async function migrateLocalToSupabase() {
                 nama: String(p.nama).trim().toUpperCase(), 
                 bidang: String(p.bidang || '').trim().toUpperCase(), 
                 departemen: String(p.dept || p.departemen || '').trim().toUpperCase(), 
-                status: String(p.status || 'AKTIF').trim().toUpperCase() 
+                status: String(p.status || 'AKTIF').trim().toUpperCase(),
+                tanggal_nonaktif: null
             })).filter(p => p.nip && p.nama);
             const { error: errPegawai } = await db.from('master_pegawai').insert(mapped);
             if (errPegawai) console.error("Error Migrasi Pegawai:", errPegawai);
