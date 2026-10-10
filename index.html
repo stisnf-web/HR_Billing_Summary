@@ -113,8 +113,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- GRAFIK BARU: PEMBIAYAAN & HUTANG -->
         <div class="row g-4 mb-4">
             <div class="col-lg-7">
                 <div class="card card-stat p-4 h-100">
@@ -1665,7 +1663,7 @@ async function showCicilanDetail(cicilanId) {
     if (!c) return; 
     document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai; 
     let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel, Estimasi ' + c.tenor + ' bulan)' : 'Langsung Lunas'; 
-    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1'><strong>Status:</strong> ' + c.status + '</p></div>'; 
+    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
     document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
     document.getElementById('bayarCicilanId').value = c.id; 
     document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0]; 
