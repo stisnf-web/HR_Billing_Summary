@@ -764,6 +764,8 @@ async function updateAllSystems() {
 }
 
 // ===== FUNGSI UTAMA PLAFON: HITUNG PEMAKAIAN PER TAHUN AJARAN =====
+// [FIX] - Diperbaiki: spouseCover dihitung dari subtotal - cover - pribadi (benar)
+// dan diattribusikan ke plafon pasangan, bukan ke plafon sendiri
 function getPlafonUsageByTA() {
     let usageMap = {};
     dataDatabase.forEach(item => {
@@ -779,8 +781,7 @@ function getPlafonUsageByTA() {
             usageMap[pName][ta] = (usageMap[pName][ta] || 0) + cover;
         }
         
-        // PERUBAHAN: Hitung spouseCover = subtotal - cover_yayasan - biaya_pribadi
-        // Ini adalah nominal yang tertagih ke plafon pasangan
+        // spouseCover = nominal yang tertagih ke plafon pasangan
         let spouseCover = subtotal - cover - pribadi;
         if (spouseCover > 0) {
             let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
@@ -796,6 +797,8 @@ function getPlafonUsageByTA() {
     return usageMap;
 }
 
+// [FIX] - Diperbaiki: Hapus legacy excess logic yang menyebabkan plafon jadi 0
+// terpakai = directUsage (ownUsage + iCoverForSpouse), tanpa pengurangan coveredBySpouse
 function getPlafonInfo(pegawai, ta) {
     let pName = normalizeName(pegawai);
     let plafonTotal = (dataPlafon[pName] && dataPlafon[pName][ta]) ? dataPlafon[pName][ta] : 0;
@@ -816,8 +819,8 @@ function getPlafonInfo(pegawai, ta) {
 
     // Hitung breakdown detail untuk display
     let ownCoverYayasan = 0;
-    let spouseCoversForMe = 0;  // Pasangan cover untuk pegawai ini
-    let iCoverForSpouse = 0;     // Pegawai ini cover untuk pasangan
+    let spouseCoversForMe = 0;
+    let iCoverForSpouse = 0;
 
     dataDatabase.forEach(item => {
         let itemTa = getTahunAjaran(item.tanggal);
@@ -842,33 +845,23 @@ function getPlafonInfo(pegawai, ta) {
         }
     });
 
-    // Backward compatibility: excess logic untuk data lama
+    // [FIX] - Hapus legacy excess logic (coveredBySpouse / coveredByMe)
+    // terpakai = directUsage (sudah termasuk ownUsage + iCoverForSpouse)
+    // sisa = plafonTotal - directUsage (bisa negatif jika overused)
+    let terpakai = directUsage;
+    let sisa = plafonTotal - terpakai;
+    
     let coveredBySpouse = 0;
     let coveredByMe = 0;
-
-    let mySisa = plafonTotal - directUsage;
-    let spouseSisa = spousePlafonTotal - spouseDirectUsage;
-
-    if (mySisa < 0) {
-        let myExcess = Math.abs(mySisa);
-        let spouseAvail = Math.max(0, spouseSisa);
-        coveredBySpouse = Math.min(myExcess, spouseAvail);
-    }
-    if (spouseSisa < 0) {
-        let spouseExcess = Math.abs(spouseSisa);
-        let myAvail = Math.max(0, mySisa);
-        coveredByMe = Math.min(spouseExcess, myAvail);
-    }
-
-    let terpakai = directUsage - coveredBySpouse + coveredByMe;
-    let sisa = plafonTotal - terpakai;
 
     return {
         plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse, coveredByMe,
         directUsage,
         ownUsage: ownCoverYayasan,
         spouseCoversForMe: spouseCoversForMe,
-        iCoverForSpouse: iCoverForSpouse
+        iCoverForSpouse: iCoverForSpouse,
+        spousePlafonTotal,
+        spouseDirectUsage
     };
 }
 
@@ -1180,7 +1173,7 @@ function toggleTanggalNonaktif() {
     divTgl.style.display = status === 'TIDAK AKTIF' ? 'block' : 'none';
 }
 
-// ===== SPOUSE SEARCH FUNCTIONS (NEW) =====
+// ===== SPOUSE SEARCH FUNCTIONS =====
 function filterSpouseOptions() {
     let searchInput = document.getElementById('mpSpouseSearch');
     let dropdown = document.getElementById('mpSpouseDropdown');
@@ -1241,7 +1234,6 @@ function clearSpouseSelection() {
     document.getElementById('mpSpouseDropdown').classList.remove('show');
 }
 
-// Close dropdown when clicking outside
 document.addEventListener('click', function(e) {
     const container = e.target.closest('.spouse-search-container');
     if (!container) {
@@ -1506,7 +1498,12 @@ function autofillBidangPegawai() {
     }
 }
 
-// ===== ENHANCED PLAFON AVAILABILITY CHECK WITH BREAKDOWN CARD =====
+// ===== [FIX] ENHANCED PLAFON AVAILABILITY CHECK =====
+// Bug lama: biayaPribadi dihitung dari userCoverInput (input user), 
+//   BUKAN dari coverByMe + totalSpouseCover (cover aktual).
+// Akibatnya: selisih yang tidak tercover malah dihitung sebagai spouseCover,
+// membuat plafon pasangan tertagih berlebih dan plafon SDM menjadi 0.
+// Fix: biayaPribadi = subtotal - coverByMe - coverBySpouseForCover
 function checkPlafonAvailability() {
     let pegawai = document.getElementById('dbPegawai').value.trim();
     let tanggal = document.getElementById('dbTanggal').value;
@@ -1546,6 +1543,11 @@ function checkPlafonAvailability() {
     let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
     directUsage -= currentSavedCover;
     let currentSpouseCover = currentSavedSubtotal - currentSavedCover - currentSavedPribadi;
+    if (currentSpouseCover > 0) {
+        // currentSpouseCover was charged to spouse, need to exclude it from directUsage
+        // (it's already in usageMap[pName] because directUsage includes iCoverForSpouse)
+        directUsage -= currentSpouseCover;
+    }
     let employeeAvail = Math.max(0, info.plafonTotal - directUsage);
     
     // Hitung info pasangan
@@ -1565,7 +1567,7 @@ function checkPlafonAvailability() {
         spouseAvail = Math.max(0, spousePlafonTotal - spouseDirectUsage);
     }
     
-    // === PERHITUNGAN UTAMA ===
+    // === PERHITUNGAN UTAMA (FIXED) ===
     // 1. Cover dari plafon pegawai sendiri
     let coverByMe = Math.min(userCoverInput, employeeAvail);
     
@@ -1576,8 +1578,9 @@ function checkPlafonAvailability() {
         coverBySpouseForCover = Math.min(remainingForCover, spouseAvail);
     }
     
-    // 3. Biaya Pribadi awal = Sub Total - Cover Yayasan
-    let biayaPribadi = Math.max(0, subtotal - userCoverInput);
+    // [FIX] 3. Biaya Pribadi = subtotal - coverByMe - coverBySpouseForCover
+    // (Bukan subtotal - userCoverInput! Itu bug lama yang menyebabkan plafon jadi 0)
+    let biayaPribadi = Math.max(0, subtotal - coverByMe - coverBySpouseForCover);
     
     // 4. Pasangan cover Biaya Pribadi
     let coverBySpouseForPribadi = 0;
