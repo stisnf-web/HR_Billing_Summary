@@ -704,19 +704,21 @@ function getPlafonUsageByTA() {
         let cover = Number(item.cover_yayasan) || 0;
         if (cover > 0) {
             let ta = getTahunAjaran(item.tanggal);
-            if (!usageMap[item.pegawai]) usageMap[item.pegawai] = {};
-            usageMap[item.pegawai][ta] = (usageMap[item.pegawai][ta] || 0) + cover;
+            let pName = String(item.pegawai || '').trim().toUpperCase();
+            if (!usageMap[pName]) usageMap[pName] = {};
+            usageMap[pName][ta] = (usageMap[pName][ta] || 0) + cover;
         }
     });
     return usageMap;
 }
 
 function getPlafonInfo(pegawai, ta) {
-    let plafonTotal = (dataPlafon[pegawai] && dataPlafon[pegawai][ta]) ? dataPlafon[pegawai][ta] : 0;
+    let pName = String(pegawai).trim().toUpperCase();
+    let plafonTotal = (dataPlafon[pName] && dataPlafon[pName][ta]) ? dataPlafon[pName][ta] : 0;
     let usageMap = getPlafonUsageByTA();
-    let directUsage = (usageMap[pegawai] && usageMap[pegawai][ta]) ? usageMap[pegawai][ta] : 0;
+    let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
     
-    let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim() === String(pegawai).trim());
+    let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim().toUpperCase() === pName);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseNama = spouseInfo ? spouseInfo.nama.trim() : null;
@@ -1344,7 +1346,8 @@ function checkPlafonAvailability() {
     }
     
     let usageMap = getPlafonUsageByTA();
-    let directUsage = (usageMap[pegawai] && usageMap[pegawai][ta]) ? usageMap[pegawai][ta] : 0;
+    let pName = pegawai.toUpperCase();
+    let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
     let myUsage = directUsage - currentSavedCover;
     let myPlafonAvail = Math.max(0, info.plafonTotal - myUsage);
     
@@ -1352,7 +1355,7 @@ function checkPlafonAvailability() {
     let coverBySpouse = 0;
     let pribadi = coverInput - coverByMe;
     
-    let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim() === String(pegawai).trim());
+    let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim().toUpperCase() === pName);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseNama = spouseInfo ? spouseInfo.nama.trim() : null;
@@ -1412,7 +1415,7 @@ async function saveDatabase(event) {
     }
 
     let payload = {
-        no_invoice: invoice, pegawai, bidang,
+        no_invoice: invoice, pegawai: pegawai.toUpperCase(), bidang,
         pasien: pasien,
         poli: poli,
         tanggal: tanggal,
@@ -1439,7 +1442,7 @@ async function saveDatabase(event) {
 }
 
 async function deleteDatabaseById(id) {
-    if (confirm('Yakin ingin menghapus data rujukan này? Plafon akan dihitung ulang otomatis.')) {
+    if (confirm('Yakin ingin menghapus data rujukan ini? Plafon akan dihitung ulang otomatis.')) {
         showLoading(true);
         const { error } = await db.from('database_rujukan').delete().eq('id', id);
         if (error) showToast('Error: ' + error.message, 'danger');
@@ -1508,7 +1511,7 @@ function renderPlafonTable() {
     let allPegawai = [...new Set([...Object.keys(dataPlafon), ...dataMasterPegawai.map(x => x.nama), ...dataDatabase.map(x => x.pegawai)])].sort();
     
     allPegawai.forEach(pegawai => {
-        let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim() === String(pegawai).trim());
+        let pegawaiInfo = dataMasterPegawai.find(p => String(p.nama).trim().toUpperCase() === String(pegawai).trim().toUpperCase());
         let isNonAktif = pegawaiInfo && pegawaiInfo.status === 'TIDAK AKTIF';
         let nonAktifTa = isNonAktif && pegawaiInfo.tanggal_nonaktif ? getTahunAjaran(pegawaiInfo.tanggal_nonaktif) : null;
 
@@ -1516,8 +1519,8 @@ function renderPlafonTable() {
         if (dataPlafon[pegawai] && typeof dataPlafon[pegawai] === 'object') {
             Object.keys(dataPlafon[pegawai]).forEach(ta => tas.add(ta));
         }
-        if (usageMap[pegawai]) {
-            Object.keys(usageMap[pegawai]).forEach(ta => tas.add(ta));
+        if (usageMap[pegawai.toUpperCase()]) {
+            Object.keys(usageMap[pegawai.toUpperCase()]).forEach(ta => tas.add(ta));
         }
         if (globalTa !== "SEMUA") tas.add(globalTa);
         
@@ -1577,14 +1580,18 @@ function renderPlafonTable() {
 function changePlafonPage(page) { currentPagePlafon = page; renderPlafonTable(); }
 function showPlafonDetail(pegawaiName, ta) { 
     document.getElementById('modalPlafonDetailTitle').innerText = `Riwayat Penggunaan Plafon: ${pegawaiName} (TA ${ta})`; 
-    let userClaims = dataDatabase.filter(item => item.pegawai === pegawaiName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
+    let userClaims = dataDatabase.filter(item => String(item.pegawai).trim().toUpperCase() === String(pegawaiName).trim().toUpperCase() && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
     let html = ''; let totalClaim = 0; 
     let info = getPlafonInfo(pegawaiName, ta);
     let directClaim = info.directUsage || 0;
     
     html = `<tr class="table-info"><td colspan="5" class="text-end fw-bold">Total Plafon TA ${ta}:</td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td></tr>`;
     userClaims.forEach((c, idx) => { let cover = Number(c.cover_yayasan) || 0; totalClaim += cover; html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${escapeHtml(c.no_invoice)}</code></td><td>${escapeHtml(c.pasien)}</td><td>${escapeHtml(c.poli)}</td><td class="fw-bold text-danger">${formatRupiah(cover)}</td></tr>`; }); 
-    if (userClaims.length === 0) { html += `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim.</td></tr>`; } 
+    if (userClaims.length === 0) { html += `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim sendiri.</td></tr>`; } 
+    
+    if (info.coveredByMe > 0) {
+        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold">Tagihan Plafon Dipakai Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-primary">${formatRupiah(info.coveredByMe)}</td></tr>`;
+    }
     
     let coverNote = "";
     if (info.coveredBySpouse > 0) {
@@ -1598,7 +1605,7 @@ function showPlafonDetail(pegawaiName, ta) {
     html += `<tr class="table-warning fw-bold"><td colspan="5" class="text-end">Sisa Plafon:</td><td class="${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td></tr>`; 
     document.getElementById('plafonDetailTableBody').innerHTML = html; showModal('modalPlafonDetail'); 
 }
-function getBidangByPegawai(pegawai) { let foundMaster = dataMasterPegawai.find(x => String(x.nama).trim() === String(pegawai).trim()); if (foundMaster) return foundMaster.bidang; let foundDb = dataDatabase.find(x => x.pegawai === pegawai); return foundDb ? foundDb.bidang : 'UMUM'; }
+function getBidangByPegawai(pegawai) { let foundMaster = dataMasterPegawai.find(p => String(p.nama).trim().toUpperCase() === String(pegawai).trim().toUpperCase()); if (foundMaster) return foundMaster.bidang; let foundDb = dataDatabase.find(x => x.pegawai === pegawai); return foundDb ? foundDb.bidang : 'UMUM'; }
 
 async function openModalPlafon() { 
     let nama = prompt("Masukkan Nama Pegawai untuk Setting Plafon:"); 
@@ -2113,22 +2120,23 @@ async function loadInitialData() {
         dataMasterDept = dept || [];
 
         let { data: pegawai } = await db.from('master_pegawai').select('*');
-        dataMasterPegawai = pegawai || [];
+        dataMasterPegawai = (pegawai || []).map(p => ({ ...p, nama: String(p.nama || '').trim().toUpperCase() }));
 
         let { data: rujukan } = await db.from('database_rujukan').select('*').order('tanggal', { ascending: false });
-        dataDatabase = rujukan || [];
+        dataDatabase = (rujukan || []).map(r => ({ ...r, pegawai: String(r.pegawai || '').trim().toUpperCase() }));
 
         let { data: plafon } = await db.from('plafon_kesehatan').select('*');
         dataPlafon = {};
         if (plafon) {
             plafon.forEach(p => {
-                if (!dataPlafon[p.pegawai_nama]) dataPlafon[p.pegawai_nama] = {};
-                dataPlafon[p.pegawai_nama][p.tahun_ajaran] = p.total_plafon;
+                let pName = String(p.pegawai_nama || '').trim().toUpperCase();
+                if (!dataPlafon[pName]) dataPlafon[pName] = {};
+                dataPlafon[pName][p.tahun_ajaran] = p.total_plafon;
             });
         }
 
         let { data: cicilan } = await db.from('cicilan').select('*');
-        dataCicilan = cicilan || [];
+        dataCicilan = (cicilan || []).map(c => ({ ...c, pegawai: String(c.pegawai || '').trim().toUpperCase() }));
         
         let { data: riwayat } = await db.from('cicilan_riwayat').select('*');
         if (riwayat) {
