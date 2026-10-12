@@ -38,6 +38,17 @@
         .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .preview-table { font-size: 12px; max-height: 300px; overflow-y: auto; }
+        /* Searchable Spouse Dropdown */
+        .spouse-search-container { position: relative; }
+        .spouse-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; display: none; }
+        .spouse-search-dropdown.show { display: block; }
+        .spouse-search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        .spouse-search-item:hover { background-color: #e8f5e9; }
+        .spouse-search-item.selected { background-color: #d1e7dd; }
+        /* Plafon Info Card */
+        .plafon-breakdown-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; background: #f8f9fa; margin-top: 8px; }
+        .plafon-breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+        .plafon-breakdown-row.total { border-top: 2px solid #dee2e6; margin-top: 4px; padding-top: 8px; font-weight: bold; font-size: 15px; }
     </style>
 </head>
 <body>
@@ -238,11 +249,28 @@
             </div>
             <div class="alert alert-success py-2 small mb-3"><i class="fa-solid fa-shield me-1"></i> <strong>Sistem Otomatis:</strong> Import Excel plafon akan otomatis dihubungkan per Tahun Ajaran. Pengurangan plafon otomatis dihitung dari Database Rujukan (Cover Yayasan) sesuai TA masing-masing. Jika plafon habis, sistem akan otomatis mengambil dari plafon pasangan (Suami/Istri).</div>
             <div class="row g-2 mb-3">
-                <div class="col-md-6"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
+                <div class="col-md-5"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
+                <div class="col-md-4">
+                    <select id="filterPlafonSpouse" class="form-select form-select-sm" onchange="currentPagePlafon=1; renderPlafonTable();">
+                        <option value="SEMUA">Semua Pegawai</option>
+                        <option value="PUNYA_PASANGAN">Punya Pasangan Saja</option>
+                        <option value="DIPAKAI_PASANGAN">Dipakai Pasangan Saja</option>
+                        <option value="TERCOVER_PASANGAN">Tercover Pasangan Saja</option>
+                    </select>
+                </div>
                 <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="plafonPageSize" class="form-select form-select-sm" onchange="currentPagePlafon=1; renderPlafonTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
             </div>
             <div class="table-responsive" style="min-height: 350px;">
-                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai</th><th>Bidang</th><th>Tahun Ajaran</th><th>Total Plafon</th><th>Terpakai</th><th>Sisa</th><th style="min-width:140px">Status Penggunaan</th><th class="text-center">Aksi</th></tr></thead><tbody id="plafonTableBody"></tbody></table>
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-success">
+                        <tr>
+                            <th>No</th><th>Nama Pegawai</th><th>Bidang</th><th>Tahun Ajaran</th><th>Total Plafon</th>
+                            <th>Terpakai Sendiri</th><th>Dipakai Pasangan</th><th>Tercover Pasangan</th>
+                            <th>Total Terpakai</th><th>Sisa</th><th style="min-width:140px">Status Penggunaan</th><th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plafonTableBody"></tbody>
+                </table>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <div class="small text-muted" id="plafonPaginationInfo">Menampilkan data...</div>
@@ -361,6 +389,34 @@
                             <input type="number" id="dbPribadi" class="form-control" readonly>
                         </div>
                     </div>
+                    <!-- Plafon Breakdown Card -->
+                    <div class="plafon-breakdown-card mt-3" id="plafonBreakdownCard" style="display:none;">
+                        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-shield-heart me-1"></i> Rincian Penagihan ke Plafon Kesehatan</h6>
+                        <div class="plafon-breakdown-row">
+                            <span class="text-muted"><i class="fa-solid fa-user me-1"></i> Cover dari Plafon Sendiri:</span>
+                            <span class="fw-bold text-success" id="breakdownCoverSelf">Rp 0</span>
+                        </div>
+                        <div class="plafon-breakdown-row" id="breakdownSpouseRow" style="display:none;">
+                            <span class="text-muted"><i class="fa-solid fa-heart me-1"></i> Tertagih ke Plafon Pasangan <span id="breakdownSpouseName"></span>:</span>
+                            <span class="fw-bold text-primary" id="breakdownCoverSpouse">Rp 0</span>
+                        </div>
+                        <div class="plafon-breakdown-row" id="breakdownNoSpouseRow" style="display:none;">
+                            <span class="text-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i> Plafon sendiri habis & tidak ada pasangan terdaftar:</span>
+                            <span class="fw-bold text-danger" id="breakdownNoSpouse">Rp 0</span>
+                        </div>
+                        <div class="plafon-breakdown-row total">
+                            <span><i class="fa-solid fa-wallet me-1"></i> Biaya Pribadi / Hutang:</span>
+                            <span class="text-danger" id="breakdownPribadi">Rp 0</span>
+                        </div>
+                        <div class="plafon-breakdown-row" id="breakdownPlafonInfo" style="display:none;">
+                            <span class="text-muted small"><i class="fa-solid fa-info-circle me-1"></i> Sisa Plafon Sendiri setelah tagihan ini:</span>
+                            <span class="fw-bold small" id="breakdownSisaPlafon">Rp 0</span>
+                        </div>
+                        <div class="plafon-breakdown-row" id="breakdownSpousePlafonInfo" style="display:none;">
+                            <span class="text-muted small"><i class="fa-solid fa-info-circle me-1"></i> Sisa Plafon Pasangan setelah tagihan ini:</span>
+                            <span class="fw-bold small text-primary" id="breakdownSisaSpousePlafon">Rp 0</span>
+                        </div>
+                    </div>
                     <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan</button></div>
                 </form>
             </div>
@@ -383,10 +439,18 @@
                         <div class="col-md-6"><label class="form-label fw-bold">Departemen</label><select id="mpDept" class="form-select" required></select></div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Pasangan (Suami/Istri)</label>
-                            <select id="mpSpouse" class="form-select">
-                                <option value="">-- Tidak Ada / Belum Diset --</option>
-                            </select>
-                            <small class="text-muted">Jika plafon habis, otomatis mengambil dari jatah plafon pasangan.</small>
+                            <div class="spouse-search-container">
+                                <div class="input-group">
+                                    <input type="text" id="mpSpouseSearch" class="form-control" placeholder="Ketik nama atau NIP pegawai untuk mencari pasangan..." autocomplete="off" oninput="filterSpouseOptions()">
+                                    <input type="hidden" id="mpSpouse">
+                                    <button type="button" class="btn btn-outline-danger" id="mpSpouseClearBtn" onclick="clearSpouseSelection()" style="display:none;"><i class="fa-solid fa-times"></i></button>
+                                </div>
+                                <div id="mpSpouseDropdown" class="spouse-search-dropdown"></div>
+                            </div>
+                            <small class="text-muted">Ketik nama pegawai untuk mencari. Jika plafon habis, otomatis mengambil dari jatah plafon pasangan.</small>
+                            <div id="mpSpouseSelected" class="mt-1" style="display:none;">
+                                <span class="badge bg-info text-white"><i class="fa-solid fa-heart me-1"></i> <span id="mpSpouseSelectedText"></span></span>
+                            </div>
                         </div>
                         <div class="col-md-6"><label class="form-label fw-bold">Status Kepegawaian</label><select id="mpStatus" class="form-select" onchange="toggleTanggalNonaktif()"><option value="AKTIF">Aktif</option><option value="TIDAK AKTIF">Tidak Aktif</option></select></div>
                         <div class="col-md-6" id="divTanggalNonaktif" style="display: none;"><label class="form-label fw-bold">Tanggal Non-Aktif</label><input type="date" id="mpTanggalNonaktif" class="form-control"><small class="text-muted">Digunakan untuk menghentikan plafon otomatis di tahun ajaran berikutnya.</small></div>
@@ -531,6 +595,7 @@ let debtChartInstance = null;
 let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, currentPageCicilan = 1;
 let pendingImportData = null;
 let supabaseChannels = [];
+let mpSpouseFilteredData = [];
 
 // ===== UTILITY FUNCTIONS =====
 function normalizeName(name) {
@@ -773,7 +838,6 @@ function updateDashboardSummary(filteredData) {
 }
 
 function updateCharts(subTotal, diskon) {
-    // 1. Chart Tagihan per TA
     let taMap = {};
     dataDatabase.forEach(item => { let ta = getTahunAjaran(item.tanggal); if (ta !== "Unknown") taMap[ta] = (taMap[ta] || 0) + (Number(item.tagihan) || 0); });
     let sortedTa = Object.keys(taMap).sort();
@@ -787,7 +851,6 @@ function updateCharts(subTotal, diskon) {
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Rp ' + (v/1000000) + ' Jt' } } }, onClick: (event, elements) => { if (elements.length > 0 && taLabels.length > 0) { showChartDetail(taLabels[elements[0].index].replace('TA ', '')); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
     });
 
-    // 2. Chart Efisiensi Biaya
     const ctxRatio = document.getElementById('costRatioChart');
     if (costRatioChartInstance) costRatioChartInstance.destroy();
     costRatioChartInstance = new Chart(ctxRatio.getContext('2d'), {
@@ -795,7 +858,6 @@ function updateCharts(subTotal, diskon) {
         options: { responsive: true, plugins: { legend: { position: 'bottom' } }, onClick: (event, elements) => { if (elements.length > 0) { showChartDetail(null); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
     });
 
-    // 3. Chart Pembiayaan (Yayasan vs Pribadi per TA)
     let fundingTaMap = {};
     dataDatabase.forEach(item => {
         let ta = getTahunAjaran(item.tanggal);
@@ -827,7 +889,6 @@ function updateCharts(subTotal, diskon) {
         }
     });
 
-    // 4. Chart Top 10 Hutang SDM
     let debtList = dataMasterPegawai.map(p => ({
         nama: p.nama,
         hutang: getSisaHutangPegawai(p.nama)
@@ -986,7 +1047,6 @@ function showPreviewImport(title, info, data, columns) {
     showModal('modalPreviewImport');
 }
 
-// ===== FUNGSI DEDUPLIKAT UNTUK MENGATASI ERROR ON CONFLICT DO UPDATE =====
 function deduplicateData(arr, keys) {
     if (!arr || arr.length === 0) return arr;
     const map = new Map();
@@ -1072,20 +1132,79 @@ function toggleTanggalNonaktif() {
     divTgl.style.display = status === 'TIDAK AKTIF' ? 'block' : 'none';
 }
 
+// ===== SPOUSE SEARCH FUNCTIONS (NEW) =====
+function filterSpouseOptions() {
+    let searchInput = document.getElementById('mpSpouseSearch');
+    let dropdown = document.getElementById('mpSpouseDropdown');
+    let keyword = searchInput.value.trim().toLowerCase();
+    
+    let currentEditId = document.getElementById('mpOriginalNip').value;
+    let currentNip = currentEditId ? dataMasterPegawai.find(p => p.nip === currentEditId)?.nip : null;
+    
+    let availablePegawai = dataMasterPegawai.filter(p => {
+        if (currentNip && p.nip === currentNip) return false;
+        return true;
+    });
+    
+    if (keyword === '') {
+        mpSpouseFilteredData = availablePegawai.slice(0, 50);
+    } else {
+        mpSpouseFilteredData = availablePegawai.filter(p => 
+            String(p.nama || '').toLowerCase().includes(keyword) || 
+            String(p.nip || '').toLowerCase().includes(keyword) ||
+            String(p.bidang || '').toLowerCase().includes(keyword)
+        ).slice(0, 50);
+    }
+    
+    let html = '';
+    if (mpSpouseFilteredData.length === 0) {
+        html = '<div class="spouse-search-item text-muted text-center">Tidak ditemukan pegawai yang cocok</div>';
+    } else {
+        mpSpouseFilteredData.forEach(p => {
+            html += `<div class="spouse-search-item" onclick="selectSpouse('${p.nip}', '${escapeHtml(p.nama)}')">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${escapeHtml(p.nama)}</strong>
+                        <br><small class="text-muted">NIP: ${escapeHtml(p.nip)} | ${escapeHtml(p.bidang || '-')}</small>
+                    </div>
+                    <i class="fa-solid fa-heart text-success"></i>
+                </div>
+            </div>`;
+        });
+    }
+    dropdown.innerHTML = html;
+    dropdown.classList.add('show');
+}
+
+function selectSpouse(nip, nama) {
+    document.getElementById('mpSpouse').value = nip;
+    document.getElementById('mpSpouseSearch').value = nama;
+    document.getElementById('mpSpouseDropdown').classList.remove('show');
+    document.getElementById('mpSpouseClearBtn').style.display = '';
+    document.getElementById('mpSpouseSelected').style.display = '';
+    document.getElementById('mpSpouseSelectedText').innerText = `${nama} (NIP: ${nip})`;
+}
+
+function clearSpouseSelection() {
+    document.getElementById('mpSpouse').value = '';
+    document.getElementById('mpSpouseSearch').value = '';
+    document.getElementById('mpSpouseClearBtn').style.display = 'none';
+    document.getElementById('mpSpouseSelected').style.display = 'none';
+    document.getElementById('mpSpouseDropdown').classList.remove('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const container = e.target.closest('.spouse-search-container');
+    if (!container) {
+        const dropdown = document.getElementById('mpSpouseDropdown');
+        if (dropdown) dropdown.classList.remove('show');
+    }
+});
+
 function openModalMasterPegawai(mode, id = null) {
     let bidangOpt = ''; dataMasterBidang.forEach(b => bidangOpt += `<option value="${b.nama_bidang.trim()}">${b.nama_bidang.trim()}</option>`); document.getElementById('mpBidang').innerHTML = bidangOpt;
     let deptOpt = ''; dataMasterDept.forEach(d => deptOpt += `<option value="${d.nama_departemen.trim()}">${d.nama_departemen.trim()}</option>`); document.getElementById('mpDept').innerHTML = deptOpt;
-    
-    // Populate Spouse Options
-    let spouseOpt = '<option value="">-- Tidak Ada / Belum Diset --</option>';
-    let currentPegawai = id ? dataMasterPegawai.find(x => x.id === id) : null;
-    
-    dataMasterPegawai.forEach(p => {
-        if (!currentPegawai || p.id !== currentPegawai.id) {
-            spouseOpt += `<option value="${p.nip}">${escapeHtml(p.nama)} (${escapeHtml(p.nip)})</option>`;
-        }
-    });
-    document.getElementById('mpSpouse').innerHTML = spouseOpt;
     
     document.getElementById('formMasterPegawai').reset();
     
@@ -1096,15 +1215,17 @@ function openModalMasterPegawai(mode, id = null) {
         divTglNonaktif.style.display = this.value === 'TIDAK AKTIF' ? 'block' : 'none';
     };
 
+    let currentPegawai = null;
     if (mode === 'add') { 
         document.getElementById('modalMasterPegawaiTitle').innerText = "Tambah Pegawai Baru"; 
         document.getElementById('mpOriginalNip').value = ''; 
         divTglNonaktif.style.display = 'none';
         document.getElementById('mpTanggalNonaktif').value = '';
-        document.getElementById('mpSpouse').value = '';
+        clearSpouseSelection();
     }
     else { 
         document.getElementById('modalMasterPegawaiTitle').innerText = "Edit Data Pegawai"; 
+        currentPegawai = dataMasterPegawai.find(x => x.id === id);
         if (!currentPegawai) { showToast('Data tidak ditemukan!', 'danger'); return; }
         document.getElementById('mpOriginalNip').value = currentPegawai.nip; 
         document.getElementById('mpNip').value = currentPegawai.nip; 
@@ -1114,7 +1235,18 @@ function openModalMasterPegawai(mode, id = null) {
         document.getElementById('mpStatus').value = currentPegawai.status; 
         divTglNonaktif.style.display = currentPegawai.status === 'TIDAK AKTIF' ? 'block' : 'none';
         document.getElementById('mpTanggalNonaktif').value = currentPegawai.tanggal_nonaktif ? parseExcelDate(currentPegawai.tanggal_nonaktif) : '';
-        document.getElementById('mpSpouse').value = currentPegawai.spouse_nip || '';
+        
+        // Set spouse selection
+        if (currentPegawai.spouse_nip) {
+            let spouseInfo = dataMasterPegawai.find(p => p.nip === currentPegawai.spouse_nip);
+            if (spouseInfo) {
+                selectSpouse(spouseInfo.nip, spouseInfo.nama);
+            } else {
+                clearSpouseSelection();
+            }
+        } else {
+            clearSpouseSelection();
+        }
     }
     showModal('modalMasterPegawai');
 }
@@ -1143,11 +1275,9 @@ async function saveMasterPegawai(event) {
             const { error } = await db.from('master_pegawai').update(payload).eq('nip', origNip);
             if (error) throw error;
             
-            // Update spouse's record to be bi-directional
             if (spouseNip) {
                 await db.from('master_pegawai').update({ spouse_nip: nip }).eq('nip', spouseNip);
             } else {
-                // If spouse is removed, remove the link from the old spouse too
                 let oldPegawai = dataMasterPegawai.find(x => x.nip === origNip);
                 if (oldPegawai && oldPegawai.spouse_nip) {
                     await db.from('master_pegawai').update({ spouse_nip: null }).eq('nip', oldPegawai.spouse_nip);
@@ -1171,7 +1301,6 @@ async function deleteMasterPegawai(id) {
         const { error } = await db.from('master_pegawai').delete().eq('id', id);
         if (error) { showToast('Error: ' + error.message, 'danger'); }
         else {
-            // Remove spouse link if exists
             if (p.spouse_nip) {
                 await db.from('master_pegawai').update({ spouse_nip: null }).eq('nip', p.spouse_nip);
             }
@@ -1282,7 +1411,6 @@ function openModalDatabase(mode, id = null) {
     let dbPegawaiInput = document.getElementById('dbPegawai');
     let masterPegawaiList = document.getElementById('masterPegawaiList');
     
-    // Populate datalist for Pegawai
     masterPegawaiList.innerHTML = '';
     dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { 
         let opt = document.createElement('option'); 
@@ -1292,6 +1420,7 @@ function openModalDatabase(mode, id = null) {
     });
     
     document.getElementById('formDatabase').reset();
+    document.getElementById('plafonBreakdownCard').style.display = 'none';
     
     if (mode === 'add') { 
         document.getElementById('modalDatabaseTitle').innerText = "Tambah Data Rujukan"; 
@@ -1330,13 +1459,20 @@ function autofillBidangPegawai() {
     }
 }
 
+// ===== ENHANCED PLAFON AVAILABILITY CHECK WITH BREAKDOWN CARD =====
 function checkPlafonAvailability() {
     let pegawai = document.getElementById('dbPegawai').value.trim();
     let tanggal = document.getElementById('dbTanggal').value;
     let coverInput = parseFloat(document.getElementById('dbCover').value) || 0;
     let infoEl = document.getElementById('plafonInfoText');
+    let breakdownCard = document.getElementById('plafonBreakdownCard');
     
-    if (!pegawai || !tanggal) { infoEl.className = 'text-muted'; infoEl.innerText = 'Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover.'; return; }
+    if (!pegawai || !tanggal) { 
+        infoEl.className = 'text-muted'; 
+        infoEl.innerText = 'Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover.'; 
+        breakdownCard.style.display = 'none';
+        return; 
+    }
     
     let ta = getTahunAjaran(tanggal);
     let info = getPlafonInfo(pegawai, ta);
@@ -1353,8 +1489,8 @@ function checkPlafonAvailability() {
     let usageMap = getPlafonUsageByTA();
     let pName = normalizeName(pegawai);
     let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
-    let myUsage = directUsage - currentSavedCover;
-    let myPlafonAvail = Math.max(0, info.plafonTotal - myUsage);
+    let myUsageExcludingCurrent = directUsage - currentSavedCover;
+    let myPlafonAvail = Math.max(0, info.plafonTotal - myUsageExcludingCurrent);
     
     let coverByMe = Math.min(coverInput, myPlafonAvail);
     let coverBySpouse = 0;
@@ -1363,25 +1499,85 @@ function checkPlafonAvailability() {
     let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
-    let spouseNama = spouseInfo ? normalizeName(spouseInfo.nama) : null;
+    let spouseNama = spouseInfo ? spouseInfo.nama : null;
     
-    if (spouseNama && pribadi > 0) {
-        let spousePlafon = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
-        let spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
-        let spouseAvail = Math.max(0, spousePlafon - spouseDirectUsage);
+    let spousePlafonAvail = 0;
+    let spousePlafonTotal = 0;
+    
+    if (spouseInfo && pribadi > 0) {
+        let spouseNameNorm = normalizeName(spouseInfo.nama);
+        let spousePlafon = (dataPlafon[spouseNameNorm] && dataPlafon[spouseNameNorm][ta]) ? dataPlafon[spouseNameNorm][ta] : 0;
+        let spouseDirectUsage = (usageMap[spouseNameNorm] && usageMap[spouseNameNorm][ta]) ? usageMap[spouseNameNorm][ta] : 0;
+        spousePlafonTotal = spousePlafon;
+        spousePlafonAvail = Math.max(0, spousePlafon - spouseDirectUsage);
         
-        coverBySpouse = Math.min(pribadi, spouseAvail);
+        coverBySpouse = Math.min(pribadi, spousePlafonAvail);
         pribadi -= coverBySpouse;
     }
     
     document.getElementById('dbPribadi').value = pribadi;
     
+    // Update info text
     let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
-    if (coverBySpouse > 0) infoText += `<br><span class="text-primary">Cover Pasangan (${escapeHtml(spouseNama)}): ${formatRupiah(coverBySpouse)}</span>`;
-    if (pribadi > 0) infoText += `<br><span class="text-danger">Biaya Pribadi / Hutang: ${formatRupiah(pribadi)}</span>`;
-    
-    infoEl.className = 'small mt-1';
+    if (coverBySpouse > 0) infoText += ` + Cover Pasangan: ${formatRupiah(coverBySpouse)}`;
+    infoEl.className = 'small mt-1 text-muted';
     infoEl.innerHTML = infoText;
+    
+    // Show breakdown card
+    breakdownCard.style.display = 'block';
+    
+    // Row 1: Cover from own plafon
+    document.getElementById('breakdownCoverSelf').innerText = formatRupiah(coverByMe);
+    
+    // Row 2: Cover from spouse plafon
+    let spouseRow = document.getElementById('breakdownSpouseRow');
+    let noSpouseRow = document.getElementById('breakdownNoSpouseRow');
+    
+    if (spouseInfo && coverBySpouse > 0) {
+        spouseRow.style.display = 'flex';
+        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseNama)})`;
+        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(coverBySpouse);
+        noSpouseRow.style.display = 'none';
+    } else if (spouseInfo && coverBySpouse === 0 && pribadi > 0 && spousePlafonAvail === 0) {
+        // Has spouse but spouse plafon also exhausted
+        spouseRow.style.display = 'flex';
+        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseNama)})`;
+        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(0) + ' (Plafon pasangan juga habis)';
+        noSpouseRow.style.display = 'none';
+    } else if (!spouseInfo && pribadi > 0) {
+        // No spouse registered
+        spouseRow.style.display = 'none';
+        noSpouseRow.style.display = 'flex';
+        document.getElementById('breakdownNoSpouse').innerText = formatRupiah(pribadi);
+    } else {
+        spouseRow.style.display = 'none';
+        noSpouseRow.style.display = 'none';
+    }
+    
+    // Total: Biaya Pribadi
+    document.getElementById('breakdownPribadi').innerText = formatRupiah(pribadi);
+    
+    // Sisa plafon info
+    let sisaPlafonInfo = document.getElementById('breakdownPlafonInfo');
+    let sisaAfterThis = info.plafonTotal - (myUsageExcludingCurrent + coverByMe);
+    if (info.plafonTotal > 0) {
+        sisaPlafonInfo.style.display = 'flex';
+        let sisaEl = document.getElementById('breakdownSisaPlafon');
+        sisaEl.innerText = formatRupiah(sisaAfterThis);
+        sisaEl.className = sisaAfterThis >= 0 ? 'fw-bold small text-success' : 'fw-bold small text-danger';
+    } else {
+        sisaPlafonInfo.style.display = 'none';
+    }
+    
+    // Sisa spouse plafon info
+    let sisaSpouseInfo = document.getElementById('breakdownSpousePlafonInfo');
+    if (spouseInfo && spousePlafonTotal > 0) {
+        sisaSpouseInfo.style.display = 'flex';
+        let sisaSpouseAfterThis = spousePlafonAvail - coverBySpouse;
+        document.getElementById('breakdownSisaSpousePlafon').innerText = formatRupiah(sisaSpouseAfterThis);
+    } else {
+        sisaSpouseInfo.style.display = 'none';
+    }
 }
 
 function calcSubTotal() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = tagihan * 0.10; document.getElementById('dbDiskon').value = diskon; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; document.getElementById('dbCover').value = subtotal; calcBiayaPribadi(); checkPlafonAvailability(); }
@@ -1505,10 +1701,11 @@ async function importDatabaseExcel(event) {
     }; reader.readAsArrayBuffer(file);
 }
 
-// ===== PLAFON PER TAHUN AJARAN =====
+// ===== PLAFON PER TAHUN AJARAN (ENHANCED WITH SPOUSE USAGE COLUMNS) =====
 function renderPlafonTable() {
     let searchKeyword = (document.getElementById('searchPlafon')?.value || '').toLowerCase();
     let globalTa = document.getElementById('filterTahunAjaran').value;
+    let spouseFilter = document.getElementById('filterPlafonSpouse')?.value || 'SEMUA';
     
     let usageMap = getPlafonUsageByTA();
     
@@ -1543,10 +1740,22 @@ function renderPlafonTable() {
         });
     });
     
-    let filteredPlafon = plafonRows.filter(row => 
-        row.pegawai.toLowerCase().includes(searchKeyword) && 
-        (globalTa === "SEMUA" || row.ta === globalTa)
-    ).sort((a, b) => a.pegawai.localeCompare(b.pegawai) || a.ta.localeCompare(b.ta));
+    let filteredPlafon = plafonRows.filter(row => {
+        let matchSearch = row.pegawai.toLowerCase().includes(searchKeyword);
+        let matchTa = (globalTa === "SEMUA" || row.ta === globalTa);
+        
+        let info = getPlafonInfo(row.pegawai, row.ta);
+        let matchSpouse = true;
+        if (spouseFilter === 'PUNYA_PASANGAN') {
+            matchSpouse = info.spouseNama != null;
+        } else if (spouseFilter === 'DIPAKAI_PASANGAN') {
+            matchSpouse = info.coveredByMe > 0;
+        } else if (spouseFilter === 'TERCOVER_PASANGAN') {
+            matchSpouse = info.coveredBySpouse > 0;
+        }
+        
+        return matchSearch && matchTa && matchSpouse;
+    }).sort((a, b) => a.pegawai.localeCompare(b.pegawai) || a.ta.localeCompare(b.ta));
 
     let pageSize = parseInt(document.getElementById('plafonPageSize')?.value) || 15; 
     let totalRows = filteredPlafon.length; 
@@ -1565,17 +1774,37 @@ function renderPlafonTable() {
         let statusBadge = info.plafonTotal === 0 ? '<span class="badge bg-secondary">Belum Ditetapkan</span>' : info.sisa >= 0 ? (persen >= 80 ? '<span class="badge bg-warning text-dark">Hampir Habis</span>' : '<span class="badge bg-success">Aman</span>') : '<span class="badge bg-danger">Limit Habis</span>';
         let bidang = getBidangByPegawai(p.pegawai);
         
-        let usageNote = '';
-        if (info.coveredByMe > 0) {
-            usageNote = `<br><small class="text-primary fw-bold">Dipakai Pasangan (${escapeHtml(info.spouseNama)}): ${formatRupiah(info.coveredByMe)}</small>`;
-        } else if (info.coveredBySpouse > 0) {
-            usageNote = `<br><small class="text-info fw-bold">Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)}</small>`;
-        }
+        let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>` : '<small class="text-muted">Belum ada plafon</small>';
         
-        let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>${usageNote}` : '<small class="text-muted">Belum ada plafon</small>';
-        html += `<tr><td>${rowNumber}</td><td class="fw-bold">${escapeHtml(p.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(bidang)}</span></td><td><span class="badge bg-primary">${p.ta}</span></td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td><td class="text-danger fw-bold">${formatRupiah(info.terpakai)}</td><td class="fw-bold ${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td><td>${progressBar}<br>${statusBadge}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-outline-info me-1" onclick="showPlafonDetail('${p.pegawai}', '${p.ta}')" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button> <button class="btn btn-sm btn-warning me-1" onclick="editPlafonPegawai('${p.pegawai}', '${p.ta}')" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deletePlafonPegawai('${p.pegawai}', '${p.ta}')" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        // Spouse usage display
+        let dipakaiPasanganDisplay = info.coveredByMe > 0 
+            ? `<span class="text-primary fw-bold">${formatRupiah(info.coveredByMe)}</span><br><small class="text-primary">oleh ${escapeHtml(info.spouseNama)}</small>` 
+            : '<span class="text-muted">-</span>';
+        
+        let tercoverPasanganDisplay = info.coveredBySpouse > 0 
+            ? `<span class="text-info fw-bold">${formatRupiah(info.coveredBySpouse)}</span><br><small class="text-info">dari ${escapeHtml(info.spouseNama)}</small>` 
+            : '<span class="text-muted">-</span>';
+        
+        html += `<tr>
+            <td>${rowNumber}</td>
+            <td class="fw-bold">${escapeHtml(p.pegawai)}</td>
+            <td><span class="badge bg-secondary">${escapeHtml(bidang)}</span></td>
+            <td><span class="badge bg-primary">${p.ta}</span></td>
+            <td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td>
+            <td class="text-danger">${formatRupiah(info.directUsage)}</td>
+            <td>${dipakaiPasanganDisplay}</td>
+            <td>${tercoverPasanganDisplay}</td>
+            <td class="text-danger fw-bold">${formatRupiah(info.terpakai)}</td>
+            <td class="fw-bold ${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td>
+            <td>${progressBar}<br>${statusBadge}</td>
+            <td class="text-center text-nowrap">
+                <button class="btn btn-sm btn-outline-info me-1" onclick="showPlafonDetail('${p.pegawai}', '${p.ta}')" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button>
+                <button class="btn btn-sm btn-warning me-1" onclick="editPlafonPegawai('${p.pegawai}', '${p.ta}')" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deletePlafonPegawai('${p.pegawai}', '${p.ta}')" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>`;
     });
-    document.getElementById('plafonTableBody').innerHTML = html || `<tr><td colspan="9" class="text-center text-muted">Belum ada data</td></tr>`;
+    document.getElementById('plafonTableBody').innerHTML = html || `<tr><td colspan="12" class="text-center text-muted">Belum ada data</td></tr>`;
     let endRecord = Math.min(startIndex + pageSize, totalRows);
     document.getElementById('plafonPaginationInfo').innerText = `Menampilkan ${totalRows > 0 ? startIndex + 1 : 0} - ${endRecord} dari ${totalRows} data`;
     let navHtml = `<li class="page-item ${currentPagePlafon === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="changePlafonPage(${currentPagePlafon - 1})">Prev</a></li>`;
@@ -1593,21 +1822,32 @@ function showPlafonDetail(pegawaiName, ta) {
     let directClaim = info.directUsage || 0;
     
     html = `<tr class="table-info"><td colspan="5" class="text-end fw-bold">Total Plafon TA ${ta}:</td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td></tr>`;
+    
+    // Show own claims
+    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold text-muted">Rincian Klaim Sendiri:</td><td></td></tr>`;
     userClaims.forEach((c, idx) => { let cover = Number(c.cover_yayasan) || 0; totalClaim += cover; html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${escapeHtml(c.no_invoice)}</code></td><td>${escapeHtml(c.pasien)}</td><td>${escapeHtml(c.poli)}</td><td class="fw-bold text-danger">${formatRupiah(cover)}</td></tr>`; }); 
     if (userClaims.length === 0) { html += `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim sendiri.</td></tr>`; } 
     
+    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold">Total Klaim Sendiri:</td><td class="fw-bold">${formatRupiah(directClaim)}</td></tr>`;
+    
+    // Show spouse usage info
     if (info.coveredByMe > 0) {
-        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold">Tagihan Plafon Dipakai Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-primary">${formatRupiah(info.coveredByMe)}</td></tr>`;
+        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-heart me-1 text-primary"></i> Nominal Dipakai Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-primary">${formatRupiah(info.coveredByMe)}</td></tr>`;
+    }
+    
+    if (info.coveredBySpouse > 0) {
+        html += `<tr class="table-info"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-shield me-1 text-info"></i> Tercover oleh Plafon Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-info">${formatRupiah(info.coveredBySpouse)}</td></tr>`;
     }
     
     let coverNote = "";
-    if (info.coveredBySpouse > 0) {
-        coverNote = ` <span class="text-info fw-bold">(Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
+    if (info.coveredBySpouse > 0 && info.coveredByMe > 0) {
+        coverNote = ` <span class="text-info">(Dipakai Pasangan: ${formatRupiah(info.coveredByMe)} | Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
     } else if (info.coveredByMe > 0) {
         coverNote = ` <span class="text-primary fw-bold">(Dipakai Pasangan: ${formatRupiah(info.coveredByMe)})</span>`;
+    } else if (info.coveredBySpouse > 0) {
+        coverNote = ` <span class="text-info fw-bold">(Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
     }
     
-    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold">Tagihan Sendiri (Klaim Rujukan):</td><td class="fw-bold">${formatRupiah(directClaim)}</td></tr>`;
     html += `<tr class="table-success fw-bold"><td colspan="5" class="text-end">Total Terpakai (Sistem):${coverNote}</td><td class="text-danger">${formatRupiah(info.terpakai)}</td></tr>`; 
     html += `<tr class="table-warning fw-bold"><td colspan="5" class="text-end">Sisa Plafon:</td><td class="${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td></tr>`; 
     document.getElementById('plafonDetailTableBody').innerHTML = html; showModal('modalPlafonDetail'); 
@@ -1670,7 +1910,6 @@ function downloadTemplatePlafon() {
     showToast('Template berhasil diunduh! Tahun Ajaran bisa dikosongkan, sistem akan otomatis menggunakan TA aktif.'); 
 }
 
-// ===== IMPORT PLAFON EXCEL - OTOMATIS PER TAHUN AJARAN =====
 async function importPlafonExcel(event) { 
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); 
     reader.onload = async function(e) { 
@@ -1962,18 +2201,41 @@ function renderSdmTable() {
     window.cachedSdmData = sdmList;
 }
 function changeSdmPage(page) { currentPageSdm = page; renderSdmTable(); }
-function exportFullExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); let wsDatabase = XLSX.utils.json_to_sheet(filteredData); XLSX.utils.book_append_sheet(wb, wsDatabase, "Database Rujukan"); let sdmData = (window.cachedSdmData || []).map((item, idx) => ({ No: idx + 1, Nama: item.nama, Bidang: item.bidang, Kunjungan: item.kunjungan, TagihanNF: item.tagihan, SubTotal: item.subtotal, CoverYayasan: item.coverYayasan, BiayaPribadi: item.biayaPribadi, TotalHutang: getHutangPegawai(item.nama), SisaHutang: getSisaHutangPegawai(item.nama) })); let wsSdm = XLSX.utils.json_to_sheet(sdmData); XLSX.utils.book_append_sheet(wb, wsSdm, "Rekap per SDM"); 
+
+function exportFullExcel() { 
+    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } 
+    let wb = XLSX.utils.book_new(); 
+    let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); 
+    let wsDatabase = XLSX.utils.json_to_sheet(filteredData); 
+    XLSX.utils.book_append_sheet(wb, wsDatabase, "Database Rujukan"); 
+    let sdmData = (window.cachedSdmData || []).map((item, idx) => ({ No: idx + 1, Nama: item.nama, Bidang: item.bidang, Kunjungan: item.kunjungan, TagihanNF: item.tagihan, SubTotal: item.subtotal, CoverYayasan: item.coverYayasan, BiayaPribadi: item.biayaPribadi, TotalHutang: getHutangPegawai(item.nama), SisaHutang: getSisaHutangPegawai(item.nama) })); 
+    let wsSdm = XLSX.utils.json_to_sheet(sdmData); 
+    XLSX.utils.book_append_sheet(wb, wsSdm, "Rekap per SDM"); 
+    
     let plafonExport = [];
     Object.keys(dataPlafon).forEach(nama => {
         if (dataPlafon[nama] && typeof dataPlafon[nama] === 'object') {
             Object.keys(dataPlafon[nama]).forEach(ta => {
                 let info = getPlafonInfo(nama, ta);
-                plafonExport.push({ Pegawai: nome, TahunAjaran: ta, TotalPlafon: info.plafonTotal, Terpakai: info.terpakai, Sisa: info.sisa });
+                plafonExport.push({ 
+                    Pegawai: nama, 
+                    TahunAjaran: ta, 
+                    TotalPlafon: info.plafonTotal, 
+                    TerpakaiSendiri: info.directUsage,
+                    DipakaiPasangan: info.coveredByMe,
+                    TercoverPasangan: info.coveredBySpouse,
+                    TotalTerpakai: info.terpakai, 
+                    Sisa: info.sisa 
+                });
             });
         }
     });
-    if (plafonExport.length > 0) { let wsPlafon = XLSX.utils.json_to_sheet(plafonExport); XLSX.utils.book_append_sheet(wb, wsPlafon, "Plafon Kesehatan"); }
-    XLSX.writeFile(wb, "Rekap_Invoice_Edelweiss.xlsx"); showToast('Export Excel berhasil!'); 
+    if (plafonExport.length > 0) { 
+        let wsPlafon = XLSX.utils.json_to_sheet(plafonExport); 
+        XLSX.utils.book_append_sheet(wb, wsPlafon, "Plafon Kesehatan"); 
+    }
+    XLSX.writeFile(wb, "Rekap_Invoice_Edelweiss.xlsx"); 
+    showToast('Export Excel berhasil!'); 
 }
 
 function hitungSimulasi() { let tagihan = parseFloat(document.getElementById('simTagihan')?.value) || 0; let diskonPersen = parseFloat(document.getElementById('simDiskon')?.value) || 0; let bpjs = parseFloat(document.getElementById('simBpjs')?.value) || 0; let diskonNominal = (tagihan * diskonPersen) / 100; let subTotal = tagihan - diskonNominal - bpjs; if (subTotal < 0) subTotal = 0; document.getElementById('resTagihan').innerText = formatRupiah(tagihan); document.getElementById('resDiskon').innerText = formatRupiah(diskonNominal); document.getElementById('resSubTotal').innerText = formatRupiah(subTotal); }
