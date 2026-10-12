@@ -38,14 +38,11 @@
         .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .preview-table { font-size: 12px; max-height: 300px; overflow-y: auto; }
-        /* Searchable Spouse Dropdown */
         .spouse-search-container { position: relative; }
         .spouse-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; display: none; }
         .spouse-search-dropdown.show { display: block; }
         .spouse-search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
         .spouse-search-item:hover { background-color: #e8f5e9; }
-        .spouse-search-item.selected { background-color: #d1e7dd; }
-        /* Plafon Info Card */
         .plafon-breakdown-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; background: #f8f9fa; margin-top: 8px; }
         .plafon-breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
         .plafon-breakdown-row.total { border-top: 2px solid #dee2e6; margin-top: 4px; padding-top: 8px; font-weight: bold; font-size: 15px; }
@@ -389,7 +386,6 @@
                             <input type="number" id="dbPribadi" class="form-control" readonly>
                         </div>
                     </div>
-                    <!-- Plafon Breakdown Card -->
                     <div class="plafon-breakdown-card mt-3" id="plafonBreakdownCard" style="display:none;">
                         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-shield-heart me-1"></i> Rincian Penagihan ke Plafon Kesehatan</h6>
                         <div class="plafon-breakdown-row">
@@ -772,11 +768,29 @@ function getPlafonUsageByTA() {
     let usageMap = {};
     dataDatabase.forEach(item => {
         let cover = Number(item.cover_yayasan) || 0;
+        let pribadi = Number(item.biaya_pribadi) || 0;
+        let subtotal = Number(item.subtotal) || 0;
+        let ta = getTahunAjaran(item.tanggal);
+        let pName = normalizeName(item.pegawai);
+        
+        if (!usageMap[pName]) usageMap[pName] = {};
+        // Pemakaian plafon pegawai sendiri = cover_yayasan
         if (cover > 0) {
-            let ta = getTahunAjaran(item.tanggal);
-            let pName = normalizeName(item.pegawai);
-            if (!usageMap[pName]) usageMap[pName] = {};
             usageMap[pName][ta] = (usageMap[pName][ta] || 0) + cover;
+        }
+        
+        // PERUBAHAN: Hitung spouseCover = subtotal - cover_yayasan - biaya_pribadi
+        // Ini adalah nominal yang tertagih ke plafon pasangan
+        let spouseCover = subtotal - cover - pribadi;
+        if (spouseCover > 0) {
+            let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
+            let spouseNip = pegawaiInfo?.spouse_nip;
+            let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
+            let spouseName = spouseInfo ? normalizeName(spouseInfo.nama) : null;
+            if (spouseName) {
+                if (!usageMap[spouseName]) usageMap[spouseName] = {};
+                usageMap[spouseName][ta] = (usageMap[spouseName][ta] || 0) + spouseCover;
+            }
         }
     });
     return usageMap;
@@ -793,35 +807,69 @@ function getPlafonInfo(pegawai, ta) {
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseNama = spouseInfo ? normalizeName(spouseInfo.nama) : null;
 
-    let terpakai = directUsage;
-    let sisa = plafonTotal - terpakai;
+    let spousePlafonTotal = 0;
+    let spouseDirectUsage = 0;
+    if (spouseNama) {
+        spousePlafonTotal = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
+        spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
+    }
+
+    // Hitung breakdown detail untuk display
+    let ownCoverYayasan = 0;
+    let spouseCoversForMe = 0;  // Pasangan cover untuk pegawai ini
+    let iCoverForSpouse = 0;     // Pegawai ini cover untuk pasangan
+
+    dataDatabase.forEach(item => {
+        let itemTa = getTahunAjaran(item.tanggal);
+        if (itemTa !== ta) return;
+
+        let cover = Number(item.cover_yayasan) || 0;
+        let pribadi = Number(item.biaya_pribadi) || 0;
+        let subtotal = Number(item.subtotal) || 0;
+        let spouseCover = subtotal - cover - pribadi;
+
+        if (normalizeName(item.pegawai) === pName) {
+            ownCoverYayasan += cover;
+            if (spouseCover > 0 && spouseNama) {
+                spouseCoversForMe += spouseCover;
+            }
+        }
+
+        if (spouseNama && normalizeName(item.pegawai) === spouseNama) {
+            if (spouseCover > 0) {
+                iCoverForSpouse += spouseCover;
+            }
+        }
+    });
+
+    // Backward compatibility: excess logic untuk data lama
     let coveredBySpouse = 0;
     let coveredByMe = 0;
 
-    if (spouseNama) {
-        let spousePlafon = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
-        let spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
-        
-        let mySisa = plafonTotal - directUsage;
-        let spouseSisa = spousePlafon - spouseDirectUsage;
+    let mySisa = plafonTotal - directUsage;
+    let spouseSisa = spousePlafonTotal - spouseDirectUsage;
 
-        if (mySisa < 0) {
-            let myExcess = Math.abs(mySisa);
-            let spouseAvail = Math.max(0, spouseSisa);
-            coveredBySpouse = Math.min(myExcess, spouseAvail);
-            mySisa += coveredBySpouse;
-        } else {
-            let myAvail = mySisa;
-            let spouseExcess = Math.max(0, -spouseSisa);
-            coveredByMe = Math.min(spouseExcess, myAvail);
-            mySisa -= coveredByMe;
-        }
-        
-        terpakai = directUsage - coveredBySpouse + coveredByMe;
-        sisa = plafonTotal - terpakai;
+    if (mySisa < 0) {
+        let myExcess = Math.abs(mySisa);
+        let spouseAvail = Math.max(0, spouseSisa);
+        coveredBySpouse = Math.min(myExcess, spouseAvail);
+    }
+    if (spouseSisa < 0) {
+        let spouseExcess = Math.abs(spouseSisa);
+        let myAvail = Math.max(0, mySisa);
+        coveredByMe = Math.min(spouseExcess, myAvail);
     }
 
-    return { plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse, coveredByMe, directUsage };
+    let terpakai = directUsage - coveredBySpouse + coveredByMe;
+    let sisa = plafonTotal - terpakai;
+
+    return {
+        plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse, coveredByMe,
+        directUsage,
+        ownUsage: ownCoverYayasan,
+        spouseCoversForMe: spouseCoversForMe,
+        iCoverForSpouse: iCoverForSpouse
+    };
 }
 
 function updateDashboardSummary(filteredData) {
@@ -1236,7 +1284,6 @@ function openModalMasterPegawai(mode, id = null) {
         divTglNonaktif.style.display = currentPegawai.status === 'TIDAK AKTIF' ? 'block' : 'none';
         document.getElementById('mpTanggalNonaktif').value = currentPegawai.tanggal_nonaktif ? parseExcelDate(currentPegawai.tanggal_nonaktif) : '';
         
-        // Set spouse selection
         if (currentPegawai.spouse_nip) {
             let spouseInfo = dataMasterPegawai.find(p => p.nip === currentPegawai.spouse_nip);
             if (spouseInfo) {
@@ -1463,7 +1510,8 @@ function autofillBidangPegawai() {
 function checkPlafonAvailability() {
     let pegawai = document.getElementById('dbPegawai').value.trim();
     let tanggal = document.getElementById('dbTanggal').value;
-    let coverInput = parseFloat(document.getElementById('dbCover').value) || 0;
+    let userCoverInput = Math.min(parseFloat(document.getElementById('dbCover').value) || 0, parseFloat(document.getElementById('dbSubtotal').value) || 0);
+    let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0;
     let infoEl = document.getElementById('plafonInfoText');
     let breakdownCard = document.getElementById('plafonBreakdownCard');
     
@@ -1471,97 +1519,114 @@ function checkPlafonAvailability() {
         infoEl.className = 'text-muted'; 
         infoEl.innerText = 'Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover.'; 
         breakdownCard.style.display = 'none';
+        document.getElementById('dbPribadi').value = Math.max(0, subtotal - userCoverInput);
         return; 
     }
     
     let ta = getTahunAjaran(tanggal);
     let info = getPlafonInfo(pegawai, ta);
     
+    // Get current saved values if editing
     let editingId = document.getElementById('dbId').value;
     let currentSavedCover = 0;
+    let currentSavedPribadi = 0;
+    let currentSavedSubtotal = 0;
     if (editingId !== '') {
         let editingItem = dataDatabase.find(x => x.id === editingId);
         if (editingItem && normalizeName(editingItem.pegawai) === normalizeName(pegawai) && getTahunAjaran(editingItem.tanggal) === ta) {
             currentSavedCover = Number(editingItem.cover_yayasan) || 0;
+            currentSavedPribadi = Number(editingItem.biaya_pribadi) || 0;
+            currentSavedSubtotal = Number(editingItem.subtotal) || 0;
         }
     }
     
+    // Hitung sisa plafon pegawai (exclude record saat ini)
     let usageMap = getPlafonUsageByTA();
     let pName = normalizeName(pegawai);
     let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
-    let myUsageExcludingCurrent = directUsage - currentSavedCover;
-    let myPlafonAvail = Math.max(0, info.plafonTotal - myUsageExcludingCurrent);
+    directUsage -= currentSavedCover;
+    let currentSpouseCover = currentSavedSubtotal - currentSavedCover - currentSavedPribadi;
+    let employeeAvail = Math.max(0, info.plafonTotal - directUsage);
     
-    let coverByMe = Math.min(coverInput, myPlafonAvail);
-    let coverBySpouse = 0;
-    let pribadi = coverInput - coverByMe;
-    
+    // Hitung info pasangan
     let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
-    let spouseNama = spouseInfo ? spouseInfo.nama : null;
+    let spouseName = spouseInfo ? normalizeName(spouseInfo.nama) : null;
     
-    let spousePlafonAvail = 0;
+    let spouseAvail = 0;
     let spousePlafonTotal = 0;
-    
-    if (spouseInfo && pribadi > 0) {
-        let spouseNameNorm = normalizeName(spouseInfo.nama);
-        let spousePlafon = (dataPlafon[spouseNameNorm] && dataPlafon[spouseNameNorm][ta]) ? dataPlafon[spouseNameNorm][ta] : 0;
-        let spouseDirectUsage = (usageMap[spouseNameNorm] && usageMap[spouseNameNorm][ta]) ? usageMap[spouseNameNorm][ta] : 0;
-        spousePlafonTotal = spousePlafon;
-        spousePlafonAvail = Math.max(0, spousePlafon - spouseDirectUsage);
-        
-        coverBySpouse = Math.min(pribadi, spousePlafonAvail);
-        pribadi -= coverBySpouse;
+    if (spouseInfo) {
+        let spouseDirectUsage = (usageMap[spouseName] && usageMap[spouseName][ta]) ? usageMap[spouseName][ta] : 0;
+        if (currentSpouseCover > 0) {
+            spouseDirectUsage -= currentSpouseCover;
+        }
+        spousePlafonTotal = (dataPlafon[spouseName] && dataPlafon[spouseName][ta]) ? dataPlafon[spouseName][ta] : 0;
+        spouseAvail = Math.max(0, spousePlafonTotal - spouseDirectUsage);
     }
     
-    document.getElementById('dbPribadi').value = pribadi;
+    // === PERHITUNGAN UTAMA ===
+    // 1. Cover dari plafon pegawai sendiri
+    let coverByMe = Math.min(userCoverInput, employeeAvail);
     
-    // Update info text
-    let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
-    if (coverBySpouse > 0) infoText += ` + Cover Pasangan: ${formatRupiah(coverBySpouse)}`;
-    infoEl.className = 'small mt-1 text-muted';
-    infoEl.innerHTML = infoText;
+    // 2. Sisa Cover Yayasan yang tidak tertutup plafon pegawai → dicover pasangan
+    let remainingForCover = userCoverInput - coverByMe;
+    let coverBySpouseForCover = 0;
+    if (spouseInfo && remainingForCover > 0) {
+        coverBySpouseForCover = Math.min(remainingForCover, spouseAvail);
+    }
+    
+    // 3. Biaya Pribadi awal = Sub Total - Cover Yayasan
+    let biayaPribadi = Math.max(0, subtotal - userCoverInput);
+    
+    // 4. Pasangan cover Biaya Pribadi
+    let coverBySpouseForPribadi = 0;
+    if (spouseInfo && biayaPribadi > 0) {
+        let spouseRemaining = spouseAvail - coverBySpouseForCover;
+        coverBySpouseForPribadi = Math.min(biayaPribadi, spouseRemaining);
+        biayaPribadi -= coverBySpouseForPribadi;
+    }
+    
+    // Total spouse coverage
+    let totalSpouseCover = coverBySpouseForCover + coverBySpouseForPribadi;
+    
+    // Update form: cover_yayasan = coverByMe (hanya plafon pegawai), biaya_pribadi = sisa
+    document.getElementById('dbCover').value = coverByMe;
+    document.getElementById('dbPribadi').value = biayaPribadi;
     
     // Show breakdown card
     breakdownCard.style.display = 'block';
-    
-    // Row 1: Cover from own plafon
     document.getElementById('breakdownCoverSelf').innerText = formatRupiah(coverByMe);
     
-    // Row 2: Cover from spouse plafon
     let spouseRow = document.getElementById('breakdownSpouseRow');
     let noSpouseRow = document.getElementById('breakdownNoSpouseRow');
     
-    if (spouseInfo && coverBySpouse > 0) {
+    if (spouseInfo && totalSpouseCover > 0) {
         spouseRow.style.display = 'flex';
-        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseNama)})`;
-        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(coverBySpouse);
+        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseName)})`;
+        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(totalSpouseCover);
         noSpouseRow.style.display = 'none';
-    } else if (spouseInfo && coverBySpouse === 0 && pribadi > 0 && spousePlafonAvail === 0) {
-        // Has spouse but spouse plafon also exhausted
+    } else if (spouseInfo && biayaPribadi > 0 && spouseAvail === 0) {
         spouseRow.style.display = 'flex';
-        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseNama)})`;
+        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseName)})`;
         document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(0) + ' (Plafon pasangan juga habis)';
         noSpouseRow.style.display = 'none';
-    } else if (!spouseInfo && pribadi > 0) {
-        // No spouse registered
+    } else if (!spouseInfo && biayaPribadi > 0) {
         spouseRow.style.display = 'none';
         noSpouseRow.style.display = 'flex';
-        document.getElementById('breakdownNoSpouse').innerText = formatRupiah(pribadi);
+        document.getElementById('breakdownNoSpouse').innerText = formatRupiah(biayaPribadi);
     } else {
         spouseRow.style.display = 'none';
         noSpouseRow.style.display = 'none';
     }
     
-    // Total: Biaya Pribadi
-    document.getElementById('breakdownPribadi').innerText = formatRupiah(pribadi);
+    document.getElementById('breakdownPribadi').innerText = formatRupiah(biayaPribadi);
     
     // Sisa plafon info
     let sisaPlafonInfo = document.getElementById('breakdownPlafonInfo');
-    let sisaAfterThis = info.plafonTotal - (myUsageExcludingCurrent + coverByMe);
     if (info.plafonTotal > 0) {
         sisaPlafonInfo.style.display = 'flex';
+        let sisaAfterThis = employeeAvail - coverByMe;
         let sisaEl = document.getElementById('breakdownSisaPlafon');
         sisaEl.innerText = formatRupiah(sisaAfterThis);
         sisaEl.className = sisaAfterThis >= 0 ? 'fw-bold small text-success' : 'fw-bold small text-danger';
@@ -1573,11 +1638,18 @@ function checkPlafonAvailability() {
     let sisaSpouseInfo = document.getElementById('breakdownSpousePlafonInfo');
     if (spouseInfo && spousePlafonTotal > 0) {
         sisaSpouseInfo.style.display = 'flex';
-        let sisaSpouseAfterThis = spousePlafonAvail - coverBySpouse;
+        let sisaSpouseAfterThis = spouseAvail - totalSpouseCover;
         document.getElementById('breakdownSisaSpousePlafon').innerText = formatRupiah(sisaSpouseAfterThis);
     } else {
         sisaSpouseInfo.style.display = 'none';
     }
+    
+    // Info text
+    let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
+    if (totalSpouseCover > 0) infoText += ` + Cover Pasangan: ${formatRupiah(totalSpouseCover)}`;
+    if (biayaPribadi > 0) infoText += ` + Biaya Pribadi: ${formatRupiah(biayaPribadi)}`;
+    infoEl.className = 'small mt-1 text-muted';
+    infoEl.innerHTML = infoText;
 }
 
 function calcSubTotal() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = tagihan * 0.10; document.getElementById('dbDiskon').value = diskon; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; document.getElementById('dbCover').value = subtotal; calcBiayaPribadi(); checkPlafonAvailability(); }
@@ -1749,9 +1821,9 @@ function renderPlafonTable() {
         if (spouseFilter === 'PUNYA_PASANGAN') {
             matchSpouse = info.spouseNama != null;
         } else if (spouseFilter === 'DIPAKAI_PASANGAN') {
-            matchSpouse = info.coveredByMe > 0;
+            matchSpouse = info.iCoverForSpouse > 0;
         } else if (spouseFilter === 'TERCOVER_PASANGAN') {
-            matchSpouse = info.coveredBySpouse > 0;
+            matchSpouse = info.spouseCoversForMe > 0;
         }
         
         return matchSearch && matchTa && matchSpouse;
@@ -1776,14 +1848,17 @@ function renderPlafonTable() {
         
         let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>` : '<small class="text-muted">Belum ada plafon</small>';
         
-        // Spouse usage display
-        let dipakaiPasanganDisplay = info.coveredByMe > 0 
-            ? `<span class="text-primary fw-bold">${formatRupiah(info.coveredByMe)}</span><br><small class="text-primary">oleh ${escapeHtml(info.spouseNama)}</small>` 
+        // Dipakai Pasangan = iCoverForSpouse (plafon pegawai ini dipakai oleh pasangan)
+        let dipakaiPasanganDisplay = info.iCoverForSpouse > 0
+            ? `<span class="text-primary fw-bold">${formatRupiah(info.iCoverForSpouse)}</span><br><small class="text-primary">oleh ${escapeHtml(info.spouseNama)}</small>`
             : '<span class="text-muted">-</span>';
         
-        let tercoverPasanganDisplay = info.coveredBySpouse > 0 
-            ? `<span class="text-info fw-bold">${formatRupiah(info.coveredBySpouse)}</span><br><small class="text-info">dari ${escapeHtml(info.spouseNama)}</small>` 
-            : '<span class="text-muted">-</span>';
+        // Tercover Pasangan = spouseCoversForMe (pasangan cover untuk pegawai ini)
+        let tercoverPasanganDisplay = info.spouseCoversForMe > 0
+            ? `<span class="text-info fw-bold">${formatRupiah(info.spouseCoversForMe)}</span><br><small class="text-info">dari ${escapeHtml(info.spouseNama)}</small>`
+            : (info.coveredBySpouse > 0
+                ? `<span class="text-info fw-bold">${formatRupiah(info.coveredBySpouse)}</span><br><small class="text-info">dari ${escapeHtml(info.spouseNama)}</small>`
+                : '<span class="text-muted">-</span>');
         
         html += `<tr>
             <td>${rowNumber}</td>
@@ -1791,7 +1866,7 @@ function renderPlafonTable() {
             <td><span class="badge bg-secondary">${escapeHtml(bidang)}</span></td>
             <td><span class="badge bg-primary">${p.ta}</span></td>
             <td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td>
-            <td class="text-danger">${formatRupiah(info.directUsage)}</td>
+            <td class="text-danger">${formatRupiah(info.ownUsage)}</td>
             <td>${dipakaiPasanganDisplay}</td>
             <td>${tercoverPasanganDisplay}</td>
             <td class="text-danger fw-bold">${formatRupiah(info.terpakai)}</td>
@@ -1817,35 +1892,44 @@ function showPlafonDetail(pegawaiName, ta) {
     document.getElementById('modalPlafonDetailTitle').innerText = `Riwayat Penggunaan Plafon: ${pegawaiName} (TA ${ta})`; 
     let pName = normalizeName(pegawaiName);
     let userClaims = dataDatabase.filter(item => normalizeName(item.pegawai) === pName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
-    let html = ''; let totalClaim = 0; 
+    let html = ''; 
     let info = getPlafonInfo(pegawaiName, ta);
-    let directClaim = info.directUsage || 0;
+    let directClaim = info.ownUsage || 0;
     
     html = `<tr class="table-info"><td colspan="5" class="text-end fw-bold">Total Plafon TA ${ta}:</td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td></tr>`;
     
-    // Show own claims
-    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold text-muted">Rincian Klaim Sendiri:</td><td></td></tr>`;
-    userClaims.forEach((c, idx) => { let cover = Number(c.cover_yayasan) || 0; totalClaim += cover; html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${escapeHtml(c.no_invoice)}</code></td><td>${escapeHtml(c.pasien)}</td><td>${escapeHtml(c.poli)}</td><td class="fw-bold text-danger">${formatRupiah(cover)}</td></tr>`; }); 
+    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold text-muted">Rincian Klaim Sendiri (Cover Yayasan):</td><td></td></tr>`;
+    userClaims.forEach((c, idx) => { 
+        let cover = Number(c.cover_yayasan) || 0; 
+        let pribadi = Number(c.biaya_pribadi) || 0;
+        let subtotal = Number(c.subtotal) || 0;
+        let spouseCover = subtotal - cover - pribadi;
+        let spouseNote = spouseCover > 0 ? `<br><small class="text-info">+ Tertagih ke plafon pasangan: ${formatRupiah(spouseCover)}</small>` : '';
+        html += `<tr><td>${idx + 1}</td><td>${parseExcelDate(c.tanggal)}</td><td><code>${escapeHtml(c.no_invoice)}</code></td><td>${escapeHtml(c.pasien)}</td><td>${escapeHtml(c.poli)}</td><td class="fw-bold text-danger">${formatRupiah(cover)}${spouseNote}</td></tr>`; 
+    }); 
     if (userClaims.length === 0) { html += `<tr><td colspan="6" class="text-center text-muted">Belum ada riwayat klaim sendiri.</td></tr>`; } 
     
-    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold">Total Klaim Sendiri:</td><td class="fw-bold">${formatRupiah(directClaim)}</td></tr>`;
+    html += `<tr class="table-light"><td colspan="5" class="text-end fw-bold">Total Klaim Sendiri (Cover Yayasan):</td><td class="fw-bold">${formatRupiah(info.ownUsage)}</td></tr>`;
     
-    // Show spouse usage info
-    if (info.coveredByMe > 0) {
-        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-heart me-1 text-primary"></i> Nominal Dipakai Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-primary">${formatRupiah(info.coveredByMe)}</td></tr>`;
+    if (info.spouseCoversForMe > 0) {
+        html += `<tr class="table-info"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-shield me-1 text-info"></i> Tertagih ke Plafon Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-info">${formatRupiah(info.spouseCoversForMe)}</td></tr>`;
     }
-    
-    if (info.coveredBySpouse > 0) {
-        html += `<tr class="table-info"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-shield me-1 text-info"></i> Tercover oleh Plafon Pasangan (${escapeHtml(info.spouseNama)}):</td><td class="fw-bold text-info">${formatRupiah(info.coveredBySpouse)}</td></tr>`;
+    if (info.iCoverForSpouse > 0) {
+        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-heart me-1 text-primary"></i> Dipakai Pasangan (${escapeHtml(info.spouseNama)}) dari Plafon Ini:</td><td class="fw-bold text-primary">${formatRupiah(info.iCoverForSpouse)}</td></tr>`;
+    }
+    if (info.coveredBySpouse > 0 && info.spouseCoversForMe === 0) {
+        html += `<tr class="table-info"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-shield me-1 text-info"></i> Tercover Pasangan (excess lama):</td><td class="fw-bold text-info">${formatRupiah(info.coveredBySpouse)}</td></tr>`;
+    }
+    if (info.coveredByMe > 0 && info.iCoverForSpouse === 0) {
+        html += `<tr class="table-primary"><td colspan="5" class="text-end fw-bold"><i class="fa-solid fa-heart me-1 text-primary"></i> Cover Pasangan (excess lama):</td><td class="fw-bold text-primary">${formatRupiah(info.coveredByMe)}</td></tr>`;
     }
     
     let coverNote = "";
-    if (info.coveredBySpouse > 0 && info.coveredByMe > 0) {
-        coverNote = ` <span class="text-info">(Dipakai Pasangan: ${formatRupiah(info.coveredByMe)} | Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
-    } else if (info.coveredByMe > 0) {
-        coverNote = ` <span class="text-primary fw-bold">(Dipakai Pasangan: ${formatRupiah(info.coveredByMe)})</span>`;
-    } else if (info.coveredBySpouse > 0) {
-        coverNote = ` <span class="text-info fw-bold">(Tercover Pasangan: ${formatRupiah(info.coveredBySpouse)})</span>`;
+    if (info.spouseCoversForMe > 0 || info.coveredBySpouse > 0) {
+        coverNote = ` <span class="text-info">(Tercover Pasangan: ${formatRupiah(info.spouseCoversForMe + info.coveredBySpouse)})</span>`;
+    }
+    if (info.iCoverForSpouse > 0 || info.coveredByMe > 0) {
+        coverNote += ` <span class="text-primary">(Dipakai Pasangan: ${formatRupiah(info.iCoverForSpouse + info.coveredByMe)})</span>`;
     }
     
     html += `<tr class="table-success fw-bold"><td colspan="5" class="text-end">Total Terpakai (Sistem):${coverNote}</td><td class="text-danger">${formatRupiah(info.terpakai)}</td></tr>`; 
@@ -2221,9 +2305,9 @@ function exportFullExcel() {
                     Pegawai: nama, 
                     TahunAjaran: ta, 
                     TotalPlafon: info.plafonTotal, 
-                    TerpakaiSendiri: info.directUsage,
-                    DipakaiPasangan: info.coveredByMe,
-                    TercoverPasangan: info.coveredBySpouse,
+                    TerpakaiSendiri: info.ownUsage,
+                    DipakaiPasangan: info.iCoverForSpouse,
+                    TercoverPasangan: info.spouseCoversForMe,
                     TotalTerpakai: info.terpakai, 
                     Sisa: info.sisa 
                 });
