@@ -2258,7 +2258,29 @@ function renderSdmTable() {
         
         let badgeHutang = '';
         if (grossHutang === 0) {
-            badgeHutang = '<span class="badge bg-secondary">Tidak Ada Hutang</span>';
+            // Cek apakah pegawai ini pernah pakai plafon pasangannya
+            let isCoveredBySpouse = false;
+            let checkedTa = {};
+            
+            dataDatabase.forEach(dbItem => {
+                if (normalizeName(dbItem.pegawai) === normalizeName(item.nama)) {
+                    let ta = getTahunAjaran(dbItem.tanggal);
+                    checkedTa[ta] = true;
+                }
+            });
+            
+            Object.keys(checkedTa).forEach(ta => {
+                let info = getPlafonInfo(item.nama, ta);
+                if (info.spouseCoversForMe > 0) {
+                    isCoveredBySpouse = true;
+                }
+            });
+
+            if (isCoveredBySpouse) {
+                badgeHutang = '<span class="badge bg-info text-white" title="Kelebihan plafon ditanggung pasangan"><i class="fa-solid fa-shield-heart me-1"></i> Tercover Pasangan</span>';
+            } else {
+                badgeHutang = '<span class="badge bg-secondary">Tidak Ada Hutang</span>';
+            }
         } else if (sisaHutang === 0) {
             badgeHutang = '<span class="badge bg-success">Lunas</span>';
         } else {
