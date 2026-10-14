@@ -368,7 +368,7 @@
                             <input type="text" list="masterPegawaiList" id="dbPegawai" class="form-control" required onchange="autofillBidangPegawai(); checkPlafonAvailability();" placeholder="Ketik nama atau pilih dari daftar">
                             <datalist id="masterPegawaiList"></datalist>
                         </div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Bidang / Unit</label><input type="text" id="dbBidang" class="form-control" required oninput="checkPlafonAvailability()"></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Nama Pasien</label><input type="text" id="dbPasien" class="form-control" required></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Poli / Ruang</label><input type="text" id="dbPoli" class="form-control" required></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Tanggal Rujukan</label><input type="date" id="dbTanggal" class="form-control" required onchange="checkPlafonAvailability()"></div>
@@ -638,6 +638,63 @@ async function fetchAll(table, orders = []) {
     return all;
 }
 
+// ===== IDENTITAS PEGAWAI DI PLAFON: NAMA + BIDANG (untuk nama kembar) =====
+// Untuk nama yang UNIK, kunci tetap hanya NAMA (perilaku lama tidak berubah).
+// Untuk nama yang KEMBAR (beberapa pegawai/plafon dengan nama sama, bidang beda), kunci = NAMA||BIDANG.
+const KEY_SEP = '||';
+let dupNames = new Set();
+let plafonRaw = [];
+
+function computeDupNames(masters, rawPlafon) {
+    const m = {}, r = {};
+    masters.forEach(x => { const n = normalizeName(x.nama); if (n) (m[n] = m[n] || new Set()).add(normalizeName(x.bidang)); });
+    rawPlafon.forEach(x => { if (x.bidang) (r[x.nama] = r[x.nama] || new Set()).add(x.bidang); });
+    const out = new Set();
+    Object.keys(m).forEach(n => { if (m[n].size >= 2) out.add(n); });
+    Object.keys(r).forEach(n => { if (r[n].size >= 2) out.add(n); });
+    return out;
+}
+function idKey(nama, bidang) {
+    const n = normalizeName(nama);
+    if (!dupNames.has(n)) return n;
+    return n + KEY_SEP + normalizeName(bidang);
+}
+function toKey(x, bidang) {
+    const s = String(x ?? '');
+    if (s.includes(KEY_SEP)) { const i = s.indexOf(KEY_SEP); return idKey(s.slice(0, i), s.slice(i + KEY_SEP.length)); }
+    return idKey(s, bidang);
+}
+function parseKey(key) {
+    const s = String(key ?? '');
+    const i = s.indexOf(KEY_SEP);
+    if (i < 0) return { nama: s, bidang: '' };
+    return { nama: s.slice(0, i), bidang: s.slice(i + KEY_SEP.length) };
+}
+function keyLabel(key) { const k = parseKey(key); return k.bidang ? `${k.nama} (${k.bidang})` : k.nama; }
+function findMaster(nama, bidang) {
+    const n = normalizeName(nama);
+    const c = dataMasterPegawai.filter(p => normalizeName(p.nama) === n);
+    if (c.length <= 1) return c[0] || null;
+    const b = normalizeName(bidang);
+    return c.find(p => normalizeName(p.bidang) === b) || (dupNames.has(n) ? null : c[0]);
+}
+function bidangOptionsForName(nama) {
+    const n = normalizeName(nama), s = new Set();
+    dataMasterPegawai.filter(p => normalizeName(p.nama) === n).forEach(p => { if (p.bidang) s.add(normalizeName(p.bidang)); });
+    plafonRaw.filter(r => r.nama === n && r.bidang).forEach(r => s.add(r.bidang));
+    return [...s];
+}
+// Bidang yang disimpan ke DB. Bila kosong & nama unik, pakai bidang baris yang sudah ada (hindari baris ganda).
+function resolveStoredBidang(nama, bidangInput, ta) {
+    const b = normalizeName(bidangInput);
+    if (b) return b;
+    const n = normalizeName(nama);
+    if (dupNames.has(n)) return '';
+    const ex = plafonRaw.find(r => r.nama === n && r.ta === ta);
+    return ex ? ex.bidang : '';
+}
+function likeEsc(s) { const BS = String.fromCharCode(92); return String(s).trim().split(BS).join(BS + BS).replace(/[%_]/g, m => BS + m); }
+
 // [FIX] Parser nominal: terima "5.000.000", "5,000,000", "Rp 5.000.000", atau 5000000.
 // parseFloat("5.000.000") sebelumnya menghasilkan 5.
 function parseNominal(val) {
@@ -822,44 +879,47 @@ function getPlafonUsageByTA() {
         let pribadi = Number(item.biaya_pribadi) || 0;
         let subtotal = Number(item.subtotal) || 0;
         let ta = getTahunAjaran(item.tanggal);
-        let pName = normalizeName(item.pegawai);
-        
-        if (!usageMap[pName]) usageMap[pName] = {};
+        let pKey = idKey(item.pegawai, item.bidang);
+
+        if (!usageMap[pKey]) usageMap[pKey] = {};
         if (cover > 0) {
-            usageMap[pName][ta] = (usageMap[pName][ta] || 0) + cover;
+            usageMap[pKey][ta] = (usageMap[pKey][ta] || 0) + cover;
         }
-        
+
         let spouseCover = subtotal - cover - pribadi;
         if (spouseCover > 0) {
-            let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
+            let pegawaiInfo = findMaster(item.pegawai, item.bidang);
             let spouseNip = pegawaiInfo?.spouse_nip;
             let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
-            let spouseName = spouseInfo ? normalizeName(spouseInfo.nama) : null;
-            if (spouseName) {
-                if (!usageMap[spouseName]) usageMap[spouseName] = {};
-                usageMap[spouseName][ta] = (usageMap[spouseName][ta] || 0) + spouseCover;
+            if (spouseInfo) {
+                let sKey = idKey(spouseInfo.nama, spouseInfo.bidang);
+                if (!usageMap[sKey]) usageMap[sKey] = {};
+                usageMap[sKey][ta] = (usageMap[sKey][ta] || 0) + spouseCover;
             }
         }
     });
     return usageMap;
 }
 
-function getPlafonInfo(pegawai, ta) {
-    let pName = normalizeName(pegawai);
-    let plafonTotal = (dataPlafon[pName] && dataPlafon[pName][ta]) ? dataPlafon[pName][ta] : 0;
+// pegawai boleh berupa nama biasa, atau kunci "NAMA||BIDANG"; bidang (opsional) membedakan nama kembar
+function getPlafonInfo(pegawai, ta, bidang) {
+    let key = toKey(pegawai, bidang);
+    let { nama: pNama, bidang: pBid } = parseKey(key);
+    let plafonTotal = (dataPlafon[key] && dataPlafon[key][ta]) ? dataPlafon[key][ta] : 0;
     let usageMap = getPlafonUsageByTA();
-    let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
-    
-    let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
+    let directUsage = (usageMap[key] && usageMap[key][ta]) ? usageMap[key][ta] : 0;
+
+    let pegawaiInfo = findMaster(pNama, pBid);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseNama = spouseInfo ? normalizeName(spouseInfo.nama) : null;
+    let spouseKey = spouseInfo ? idKey(spouseInfo.nama, spouseInfo.bidang) : null;
 
     let spousePlafonTotal = 0;
     let spouseDirectUsage = 0;
-    if (spouseNama) {
-        spousePlafonTotal = (dataPlafon[spouseNama] && dataPlafon[spouseNama][ta]) ? dataPlafon[spouseNama][ta] : 0;
-        spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
+    if (spouseKey) {
+        spousePlafonTotal = (dataPlafon[spouseKey] && dataPlafon[spouseKey][ta]) ? dataPlafon[spouseKey][ta] : 0;
+        spouseDirectUsage = (usageMap[spouseKey] && usageMap[spouseKey][ta]) ? usageMap[spouseKey][ta] : 0;
     }
 
     let ownCoverYayasan = 0;
@@ -874,15 +934,16 @@ function getPlafonInfo(pegawai, ta) {
         let pribadi = Number(item.biaya_pribadi) || 0;
         let subtotal = Number(item.subtotal) || 0;
         let spouseCover = subtotal - cover - pribadi;
+        let itemKey = idKey(item.pegawai, item.bidang);
 
-        if (normalizeName(item.pegawai) === pName) {
+        if (itemKey === key) {
             ownCoverYayasan += cover;
-            if (spouseCover > 0 && spouseNama) {
+            if (spouseCover > 0 && spouseKey) {
                 spouseCoversForMe += spouseCover;
             }
         }
 
-        if (spouseNama && normalizeName(item.pegawai) === spouseNama) {
+        if (spouseKey && itemKey === spouseKey) {
             if (spouseCover > 0) {
                 iCoverForSpouse += spouseCover;
             }
@@ -891,12 +952,9 @@ function getPlafonInfo(pegawai, ta) {
 
     let terpakai = directUsage;
     let sisa = plafonTotal - terpakai;
-    
-    let coveredBySpouse = 0;
-    let coveredByMe = 0;
 
     return {
-        plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse, coveredByMe,
+        plafonTotal, terpakai, sisa, spouseNama, coveredBySpouse: 0, coveredByMe: 0,
         directUsage,
         ownUsage: ownCoverYayasan,
         spouseCoversForMe: spouseCoversForMe,
@@ -1193,8 +1251,8 @@ async function confirmImport() {
                 setTimeout(() => showToast(`${dupCount} data duplikat diabaikan.`, 'warning'), 1500);
             }
         } else if (type === 'plafon') {
-            data = deduplicateData(data, ['pegawai_nama', 'tahun_ajaran']);
-            const { error } = await db.from('plafon_kesehatan').upsert(data, { onConflict: 'pegawai_nama,tahun_ajaran' });
+            data = deduplicateData(data, ['pegawai_nama', 'bidang', 'tahun_ajaran']);
+            const { error } = await db.from('plafon_kesehatan').upsert(data, { onConflict: 'pegawai_nama,bidang,tahun_ajaran' });
             if (error) errorMsg = error.message;
         }
         
@@ -1594,9 +1652,13 @@ function openModalDatabase(mode, id = null) {
 
 function autofillBidangPegawai() { 
     let namaPegawai = document.getElementById('dbPegawai').value.trim(); 
-    let pegawaiObj = dataMasterPegawai.find(p => normalizeName(p.nama) === normalizeName(namaPegawai)); 
-    if (pegawaiObj) {
-        document.getElementById('dbBidang').value = pegawaiObj.bidang; 
+    let candidates = dataMasterPegawai.filter(p => normalizeName(p.nama) === normalizeName(namaPegawai));
+    if (candidates.length === 1) {
+        document.getElementById('dbBidang').value = candidates[0].bidang;
+    } else if (candidates.length > 1) {
+        // Nama kembar: pertahankan bidang bila sudah cocok salah satu, selain itu pilih yang pertama (bisa diubah manual)
+        let cur = normalizeName(document.getElementById('dbBidang').value);
+        if (!candidates.some(c => normalizeName(c.bidang) === cur)) document.getElementById('dbBidang').value = candidates[0].bidang;
     }
 }
 
@@ -1617,7 +1679,8 @@ function checkPlafonAvailability() {
     }
     
     let ta = getTahunAjaran(tanggal);
-    let info = getPlafonInfo(pegawai, ta);
+    let bidangInput = document.getElementById('dbBidang').value.trim();
+    let info = getPlafonInfo(pegawai, ta, bidangInput);
     
     let editingId = document.getElementById('dbId').value;
     let currentSavedCover = 0;
@@ -1625,7 +1688,7 @@ function checkPlafonAvailability() {
     let currentSavedSubtotal = 0;
     if (editingId !== '') {
         let editingItem = dataDatabase.find(x => x.id === editingId);
-        if (editingItem && normalizeName(editingItem.pegawai) === normalizeName(pegawai) && getTahunAjaran(editingItem.tanggal) === ta) {
+        if (editingItem && idKey(editingItem.pegawai, editingItem.bidang) === idKey(pegawai, bidangInput) && getTahunAjaran(editingItem.tanggal) === ta) {
             currentSavedCover = Number(editingItem.cover_yayasan) || 0;
             currentSavedPribadi = Number(editingItem.biaya_pribadi) || 0;
             currentSavedSubtotal = Number(editingItem.subtotal) || 0;
@@ -1633,7 +1696,7 @@ function checkPlafonAvailability() {
     }
     
     let usageMap = getPlafonUsageByTA();
-    let pName = normalizeName(pegawai);
+    let pName = idKey(pegawai, bidangInput);
     let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
     directUsage -= currentSavedCover;
     let currentSpouseCover = currentSavedSubtotal - currentSavedCover - currentSavedPribadi;
@@ -1642,19 +1705,20 @@ function checkPlafonAvailability() {
     }
     let employeeAvail = Math.max(0, info.plafonTotal - directUsage);
     
-    let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
+    let pegawaiInfo = findMaster(pegawai, bidangInput);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
     let spouseName = spouseInfo ? normalizeName(spouseInfo.nama) : null;
+    let spouseKey = spouseInfo ? idKey(spouseInfo.nama, spouseInfo.bidang) : null;
     
     let spouseAvail = 0;
     let spousePlafonTotal = 0;
     if (spouseInfo) {
-        let spouseDirectUsage = (usageMap[spouseName] && usageMap[spouseName][ta]) ? usageMap[spouseName][ta] : 0;
+        let spouseDirectUsage = (usageMap[spouseKey] && usageMap[spouseKey][ta]) ? usageMap[spouseKey][ta] : 0;
         if (currentSpouseCover > 0) {
             spouseDirectUsage -= currentSpouseCover;
         }
-        spousePlafonTotal = (dataPlafon[spouseName] && dataPlafon[spouseName][ta]) ? dataPlafon[spouseName][ta] : 0;
+        spousePlafonTotal = (dataPlafon[spouseKey] && dataPlafon[spouseKey][ta]) ? dataPlafon[spouseKey][ta] : 0;
         spouseAvail = Math.max(0, spousePlafonTotal - spouseDirectUsage);
     }
     
@@ -1809,7 +1873,7 @@ async function deleteDatabaseById(id) {
 function viewDatabaseById(id) {
     let item = dataDatabase.find(x => x.id === id);
     if (!item) return;
-    let info = getPlafonInfo(item.pegawai, getTahunAjaran(item.tanggal));
+    let info = getPlafonInfo(item.pegawai, getTahunAjaran(item.tanggal), item.bidang);
     document.getElementById('viewContent').innerHTML = `<p><strong>Nama Pegawai:</strong> ${escapeHtml(item.pegawai)}</p><p><strong>Bidang:</strong> ${escapeHtml(item.bidang)}</p><p><strong>Nama Pasien:</strong> ${escapeHtml(item.pasien)}</p><p><strong>Poli / Ruang:</strong> ${escapeHtml(item.poli)}</p><p><strong>Tanggal Rujukan:</strong> ${parseExcelDate(item.tanggal)}</p><p><strong>Tahun Ajaran:</strong> ${getTahunAjaran(item.tanggal)}</p><p><strong>No Invoice:</strong> ${escapeHtml(item.no_invoice)}</p><p><strong>Tagihan NF:</strong> ${formatRupiah(item.tagihan)}</p><p><strong>Sub Total:</strong> ${formatRupiah(item.subtotal)}</p><p><strong>Cover Yayasan:</strong> ${formatRupiah(item.cover_yayasan || 0)}</p><p><strong>Biaya Pribadi (Hutang):</strong> ${formatRupiah(item.biaya_pribadi || 0)}</p><hr><p class="small"><strong>Info Plafon TA ${getTahunAjaran(item.tanggal)}:</strong><br>Total Plafon: ${formatRupiah(info.plafonTotal)}<br>Terpakai: ${formatRupiah(info.terpakai)}<br>Sisa: ${formatRupiah(info.sisa)}${info.spouseNama ? `<br>Pasangan: ${escapeHtml(info.spouseNama)}` : ''}</p>`;
     showModal('modalView');
 }
@@ -1864,41 +1928,46 @@ function renderPlafonTable() {
     let usageMap = getPlafonUsageByTA();
     
     let plafonRows = [];
-    let allPegawai = [...new Set([...Object.keys(dataPlafon), ...dataMasterPegawai.map(x => x.nama), ...dataDatabase.map(x => x.pegawai)])].sort();
-    
-    allPegawai.forEach(pegawai => {
-        let pName = normalizeName(pegawai);
-        let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
+    let rawBidangByName = {};
+    plafonRaw.forEach(r => { if (r.bidang) rawBidangByName[r.nama] = r.bidang; });
+    let allKeys = [...new Set([
+        ...Object.keys(dataPlafon),
+        ...dataMasterPegawai.map(x => idKey(x.nama, x.bidang)),
+        ...dataDatabase.map(x => idKey(x.pegawai, x.bidang))
+    ])].filter(k => parseKey(k).nama).sort();
+
+    allKeys.forEach(key => {
+        let { nama: pegawai, bidang: keyBidang } = parseKey(key);
+        let isDup = dupNames.has(pegawai);
+        let bidangDisp = isDup ? keyBidang : (rawBidangByName[pegawai] || getBidangByPegawai(pegawai));
+        let pegawaiInfo = findMaster(pegawai, keyBidang);
         let isNonAktif = pegawaiInfo && pegawaiInfo.status === 'TIDAK AKTIF';
         let nonAktifTa = isNonAktif && pegawaiInfo.tanggal_nonaktif ? getTahunAjaran(pegawaiInfo.tanggal_nonaktif) : null;
 
         let tas = new Set();
-        if (dataPlafon[pName] && typeof dataPlafon[pName] === 'object') {
-            Object.keys(dataPlafon[pName]).forEach(ta => tas.add(ta));
+        if (dataPlafon[key] && typeof dataPlafon[key] === 'object') {
+            Object.keys(dataPlafon[key]).forEach(ta => tas.add(ta));
         }
-        if (usageMap[pName]) {
-            Object.keys(usageMap[pName]).forEach(ta => tas.add(ta));
+        if (usageMap[key]) {
+            Object.keys(usageMap[key]).forEach(ta => tas.add(ta));
         }
         if (globalTa !== "SEMUA") tas.add(globalTa);
         
         if (tas.size === 0) {
-            let latestTa = getLatestTahunAjaran();
-            tas.add(latestTa);
+            tas.add(getLatestTahunAjaran());
         }
         
         tas.forEach(ta => {
-            if (isNonAktif && nonAktifTa && ta > nonAktifTa) {
-                return; 
-            }
-            plafonRows.push({ pegawai, ta });
+            if (isNonAktif && nonAktifTa && ta > nonAktifTa) return;
+            plafonRows.push({ key, pegawai, bidang: bidangDisp, ta });
         });
     });
     
     let filteredPlafon = plafonRows.filter(row => {
-        let matchSearch = row.pegawai.toLowerCase().includes(searchKeyword);
+        let matchSearch = row.pegawai.toLowerCase().includes(searchKeyword) || String(row.bidang || '').toLowerCase().includes(searchKeyword);
         let matchTa = (globalTa === "SEMUA" || row.ta === globalTa);
         
-        let info = getPlafonInfo(row.pegawai, row.ta);
+        let info = getPlafonInfo(row.key, row.ta);
         let matchSpouse = true;
         if (spouseFilter === 'PUNYA_PASANGAN') {
             matchSpouse = info.spouseNama != null;
@@ -1909,7 +1978,7 @@ function renderPlafonTable() {
         }
         
         return matchSearch && matchTa && matchSpouse;
-    }).sort((a, b) => a.pegawai.localeCompare(b.pegawai) || a.ta.localeCompare(b.ta));
+    }).sort((a, b) => a.pegawai.localeCompare(b.pegawai) || String(a.bidang).localeCompare(String(b.bidang)) || a.ta.localeCompare(b.ta));
 
     let pageSize = parseInt(document.getElementById('plafonPageSize')?.value) || 15; 
     let totalRows = filteredPlafon.length; 
@@ -1922,11 +1991,11 @@ function renderPlafonTable() {
     let html = '';
     paginatedData.forEach((p, index) => {
         let rowNumber = startIndex + index + 1;
-        let info = getPlafonInfo(p.pegawai, p.ta);
+        let info = getPlafonInfo(p.key, p.ta);
         let persen = info.plafonTotal > 0 ? Math.min((info.terpakai / info.plafonTotal) * 100, 100) : 0;
         let barColor = persen >= 100 ? 'bg-danger' : persen >= 80 ? 'bg-warning' : 'bg-success';
         let statusBadge = info.plafonTotal === 0 ? '<span class="badge bg-secondary">Belum Ditetapkan</span>' : info.sisa >= 0 ? (persen >= 80 ? '<span class="badge bg-warning text-dark">Hampir Habis</span>' : '<span class="badge bg-success">Aman</span>') : '<span class="badge bg-danger">Limit Habis</span>';
-        let bidang = getBidangByPegawai(p.pegawai);
+        let bidang = p.bidang || '-';
         
         let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>` : '<small class="text-muted">Belum ada plafon</small>';
         
@@ -1953,9 +2022,9 @@ function renderPlafonTable() {
             <td class="fw-bold ${info.sisa >= 0 ? 'text-success' : 'text-danger'}">${formatRupiah(info.sisa)}</td>
             <td>${progressBar}<br>${statusBadge}</td>
             <td class="text-center text-nowrap">
-                <button class="btn btn-sm btn-outline-info me-1" data-p="${escapeHtml(p.pegawai)}" data-ta="${p.ta}" onclick="showPlafonDetail(this.dataset.p, this.dataset.ta)" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button>
-                <button class="btn btn-sm btn-warning me-1" data-p="${escapeHtml(p.pegawai)}" data-ta="${p.ta}" onclick="editPlafonPegawai(this.dataset.p, this.dataset.ta)" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn btn-sm btn-danger" data-p="${escapeHtml(p.pegawai)}" data-ta="${p.ta}" onclick="deletePlafonPegawai(this.dataset.p, this.dataset.ta)" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn btn-sm btn-outline-info me-1" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="showPlafonDetail(this.dataset.p, this.dataset.ta)" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button>
+                <button class="btn btn-sm btn-warning me-1" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="editPlafonPegawai(this.dataset.p, this.dataset.ta)" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-sm btn-danger" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="deletePlafonPegawai(this.dataset.p, this.dataset.ta)" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>`;
     });
@@ -1969,9 +2038,9 @@ function renderPlafonTable() {
 }
 function changePlafonPage(page) { currentPagePlafon = page; renderPlafonTable(); }
 function showPlafonDetail(pegawaiName, ta) { 
-    document.getElementById('modalPlafonDetailTitle').innerText = `Riwayat Penggunaan Plafon: ${pegawaiName} (TA ${ta})`; 
-    let pName = normalizeName(pegawaiName);
-    let userClaims = dataDatabase.filter(item => normalizeName(item.pegawai) === pName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
+    pegawaiName = toKey(pegawaiName);
+    document.getElementById('modalPlafonDetailTitle').innerText = `Riwayat Penggunaan Plafon: ${keyLabel(pegawaiName)} (TA ${ta})`; 
+    let userClaims = dataDatabase.filter(item => idKey(item.pegawai, item.bidang) === pegawaiName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
     let html = ''; 
     let info = getPlafonInfo(pegawaiName, ta);
     
@@ -2022,6 +2091,15 @@ async function openModalPlafon() {
     if (!nama) return; 
     let cleanNama = cleanPegawaiName(nama); 
     if (!cleanNama) { showToast('Nama pegawai tidak valid.', 'warning'); return; }
+
+    // Bidang membedakan pegawai dengan nama sama persis
+    let opts = bidangOptionsForName(cleanNama);
+    let bidangInput = prompt(
+        `Masukkan BIDANG untuk ${cleanNama}` + (opts.length ? `\nBidang terdaftar: ${opts.join(' / ')}` : '') +
+        `\n(Wajib bila ada pegawai dengan nama sama persis tetapi bidang berbeda)`,
+        opts.length === 1 ? opts[0] : ''
+    );
+    if (bidangInput === null) return;
     
     let latestTa = getLatestTahunAjaran();
     let ta = prompt(`Masukkan Tahun Ajaran (contoh: ${latestTa}):`, latestTa); 
@@ -2029,61 +2107,79 @@ async function openModalPlafon() {
     ta = formatTahunAjaran(ta);
     if (!/^\d{4}\/\d{4}$/.test(ta)) { showToast('Format Tahun Ajaran harus seperti 2025/2026.', 'warning'); return; }
     
-    let currentVal = (dataPlafon[cleanNama] && dataPlafon[cleanNama][ta]) ? dataPlafon[cleanNama][ta] : 0; 
-    let nominalRaw = prompt(`Masukkan Total Plafon untuk ${cleanNama} TA ${ta} (Rp):`, currentVal); 
+    let k = toKey(cleanNama, bidangInput);
+    let currentVal = (dataPlafon[k] && dataPlafon[k][ta]) ? dataPlafon[k][ta] : 0; 
+    let nominalRaw = prompt(`Masukkan Total Plafon untuk ${keyLabel(k)} TA ${ta} (Rp):`, currentVal); 
     if (nominalRaw === null) return;
     let nominal = parseNominal(nominalRaw);
     if (isNaN(nominal)) { showToast('Nominal tidak valid.', 'warning'); return; }
-    await savePlafonRow(cleanNama, ta, nominal, true);
+    await savePlafonRow(cleanNama, bidangInput, ta, nominal, true);
 }
 
-// [FIX] Satu fungsi simpan plafon: simpan -> muat ulang -> pastikan baris langsung terlihat
-async function savePlafonRow(pegawaiNama, ta, nominal, focusRow) {
+// Simpan plafon (nama + bidang + TA). oldBidangRaw diisi saat mengubah bidang: semua baris plafon
+// pegawai tersebut dipindah ke bidang baru.
+async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, oldBidangRaw) {
     showLoading(true);
     try {
+        const n = normalizeName(pegawaiNama);
+        const b = resolveStoredBidang(n, bidang, ta);
+        if (oldBidangRaw !== undefined && normalizeName(oldBidangRaw) !== b) {
+            const { error: e1 } = await db.from('plafon_kesehatan').update({ bidang: b }).eq('pegawai_nama', n).eq('bidang', normalizeName(oldBidangRaw));
+            if (e1) throw e1;
+        }
         const { error } = await db.from('plafon_kesehatan').upsert(
-            { pegawai_nama: pegawaiNama, tahun_ajaran: ta, total_plafon: nominal },
-            { onConflict: 'pegawai_nama,tahun_ajaran' }
+            { pegawai_nama: n, bidang: b, tahun_ajaran: ta, total_plafon: nominal },
+            { onConflict: 'pegawai_nama,bidang,tahun_ajaran' }
         );
         if (error) throw error;
         await loadInitialData();
 
-        // Pastikan hasil input tidak tersembunyi oleh filter yang sedang aktif
         let sel = document.getElementById('filterTahunAjaran');
-        if (sel && sel.value !== 'SEMUA' && sel.value !== ta && [...sel.options].some(o => o.value === ta)) {
-            sel.value = ta;
-        }
+        if (sel && sel.value !== 'SEMUA' && sel.value !== ta && [...sel.options].some(o => o.value === ta)) sel.value = ta;
         let spouseSel = document.getElementById('filterPlafonSpouse');
         if (spouseSel) spouseSel.value = 'SEMUA';
-        if (focusRow) {
-            let searchEl = document.getElementById('searchPlafon');
-            if (searchEl) searchEl.value = pegawaiNama;
-        }
+        if (focusRow) { let s = document.getElementById('searchPlafon'); if (s) s.value = n; }
         currentPagePlafon = 1;
         await updateAllSystems();
-        showToast(`Plafon ${pegawaiNama} TA ${ta}: ${formatRupiah(nominal)} - Tersimpan ke Cloud!`);
+        showToast(`Plafon ${n}${b ? ' (' + b + ')' : ''} TA ${ta}: ${formatRupiah(nominal)} - Tersimpan ke Cloud!`);
     } catch (err) {
-        showToast('Error: ' + (err.message || err), 'danger');
+        let msg = err.message || String(err);
+        if (/bidang|constraint|conflict/i.test(msg)) msg += ' -- Pastikan SQL migrasi kolom "bidang" pada tabel plafon_kesehatan sudah dijalankan di Supabase.';
+        showToast('Error: ' + msg, 'danger');
     }
     showLoading(false);
 }
-async function editPlafonPegawai(namaPegawai, ta) { 
-    let pName = normalizeName(namaPegawai);
-    let currentVal = (dataPlafon[pName] && dataPlafon[pName][ta]) ? dataPlafon[pName][ta] : 0; 
-    let nominalRaw = prompt(`Ubah Plafon untuk "${namaPegawai}" TA ${ta} (Rp):`, currentVal); 
+
+async function editPlafonPegawai(key, ta) { 
+    key = toKey(key);
+    const { nama, bidang: keyBid } = parseKey(key);
+    const isDup = dupNames.has(nama);
+    const rows = plafonRaw.filter(r => r.nama === nama && (!isDup || r.bidang === keyBid));
+    const oldRaw = rows.length ? rows[0].bidang : undefined;
+    const curBidang = isDup ? keyBid : (oldRaw || getBidangByPegawai(nama));
+
+    let bidangInput = prompt(`Ubah BIDANG untuk "${nama}":\n(Bidang membedakan pegawai dengan nama sama persis. Perubahan berlaku untuk semua tahun ajaran pegawai ini.)`, curBidang);
+    if (bidangInput === null) return;
+
+    let currentVal = (dataPlafon[key] && dataPlafon[key][ta]) ? dataPlafon[key][ta] : 0; 
+    let nominalRaw = prompt(`Ubah Plafon untuk "${keyLabel(key)}" TA ${ta} (Rp):`, currentVal); 
     if (nominalRaw === null) return;
     let nominal = parseNominal(nominalRaw);
     if (isNaN(nominal)) { showToast('Nominal tidak valid.', 'warning'); return; }
-    await savePlafonRow(pName, ta, nominal, false);
+    await savePlafonRow(nama, bidangInput, ta, nominal, false, oldRaw);
 }
-async function deletePlafonPegawai(namaPegawai, ta) {
-    let info = getPlafonInfo(namaPegawai, ta);
+async function deletePlafonPegawai(key, ta) {
+    key = toKey(key);
+    const { nama, bidang } = parseKey(key);
+    let info = getPlafonInfo(key, ta);
     if (info.terpakai > 0) { if(!confirm(`PERHATIAN: Pegawai ini sudah memiliki riwayat pemakaian plafon sebesar ${formatRupiah(info.terpakai)} di TA ${ta}. Jika plafon dihapus, pegawai ini tidak akan memiliki batas plafon (0) untuk TA tersebut. Lanjutkan?`)) return; }
-    else { if(!confirm(`Yakin ingin menghapus plafon untuk "${namaPegawai}" TA ${ta}?`)) return; }
+    else { if(!confirm(`Yakin ingin menghapus plafon untuk "${keyLabel(key)}" TA ${ta}?`)) return; }
     showLoading(true);
-    const { error } = await db.from('plafon_kesehatan').delete().ilike('pegawai_nama', String(namaPegawai).trim().replace(/[%_]/g, m => '\\' + m)).eq('tahun_ajaran', ta);
+    let q = db.from('plafon_kesehatan').delete().ilike('pegawai_nama', likeEsc(nama)).eq('tahun_ajaran', ta);
+    if (dupNames.has(nama)) q = bidang ? q.ilike('bidang', likeEsc(bidang)) : q.eq('bidang', '');
+    const { error } = await q;
     if (error) showToast('Error: ' + error.message, 'danger');
-    else { await loadInitialData(); showToast(`Plafon untuk ${namaPegawai} TA ${ta} berhasil dihapus dari cloud.`); }
+    else { await loadInitialData(); showToast(`Plafon untuk ${keyLabel(key)} TA ${ta} berhasil dihapus dari cloud.`); }
     showLoading(false);
 }
 function downloadTemplatePlafon() { 
@@ -2091,9 +2187,9 @@ function downloadTemplatePlafon() {
     let wb = XLSX.utils.book_new(); 
     let latestTa = getLatestTahunAjaran();
     let ws = XLSX.utils.json_to_sheet([
-        {NAMA_PEGAWAI: "CONTOH NAMA 1", TAHUN_AJARAN: latestTa, TOTAL_PLAFON: 5000000},
-        {NAMA_PEGAWAI: "CONTOH NAMA 2", TAHUN_AJARAN: "", TOTAL_PLAFON: 3000000},
-        {NAMA_PEGAWAI: "CONTOH NAMA 3", TAHUN_AJARAN: "2024", TOTAL_PLAFON: 7000000}
+        {NAMA_PEGAWAI: "CONTOH NAMA 1", BIDANG: "HRD", TAHUN_AJARAN: latestTa, TOTAL_PLAFON: 5000000},
+        {NAMA_PEGAWAI: "CONTOH NAMA 2", BIDANG: "", TAHUN_AJARAN: "", TOTAL_PLAFON: 3000000},
+        {NAMA_PEGAWAI: "CONTOH NAMA 3", BIDANG: "KEUANGAN", TAHUN_AJARAN: "2024", TOTAL_PLAFON: 7000000}
     ]); 
     XLSX.utils.book_append_sheet(wb, ws, "Template Plafon"); 
     XLSX.writeFile(wb, "Template_Import_Plafon_SDM.xlsx"); 
@@ -2120,7 +2216,7 @@ async function importPlafonExcel(event) {
                         autoTaCount++;
                     }
                     let plafon = parseNominal(keys.TOTAL_PLAFON ?? keys.PLAFON ?? keys.NOMINAL ?? 0) || 0; 
-                    return { pegawai_nama: nama, tahun_ajaran: ta, total_plafon: plafon }; 
+                    return { pegawai_nama: nama, bidang: resolveStoredBidang(nama, keys.BIDANG || '', ta), tahun_ajaran: ta, total_plafon: plafon }; 
                 }).filter(p => p.pegawai_nama && p.tahun_ajaran && p.total_plafon > 0);
 
                 if (insertData.length === 0) {
@@ -2130,11 +2226,11 @@ async function importPlafonExcel(event) {
                 }
 
                 pendingImportData = { type: 'plafon', data: insertData };
-                let previewData = insertData.slice(0, 50).map(d => ({ PEGAWAI: d.pegawai_nama, 'TAHUN_AJARAN': d.tahun_ajaran, TOTAL_PLAFON: formatRupiah(d.total_plafon) }));
+                let previewData = insertData.slice(0, 50).map(d => ({ PEGAWAI: d.pegawai_nama, BIDANG: d.bidang || '-', 'TAHUN_AJARAN': d.tahun_ajaran, TOTAL_PLAFON: formatRupiah(d.total_plafon) }));
                 let infoMsg = `${insertData.length} data plafon akan diimpor.`;
                 if (autoTaCount > 0) infoMsg += ` <strong>${autoTaCount} data</strong> otomatis diisi Tahun Ajaran <strong>${latestTa}</strong> (karena kosong/tidak valid).`;
                 infoMsg += '<br>Plafon akan otomatis mengurangi penggunaan dari Database Rujukan per tahun ajarannya masing-masing.';
-                showPreviewImport('Preview Import Plafon Kesehatan', infoMsg, previewData, ['PEGAWAI','TAHUN_AJARAN','TOTAL_PLAFON']);
+                showPreviewImport('Preview Import Plafon Kesehatan', infoMsg, previewData, ['PEGAWAI','BIDANG','TAHUN_AJARAN','TOTAL_PLAFON']);
             } else {
                 showToast('File kosong.', 'warning');
             }
@@ -2365,14 +2461,14 @@ function renderSdmTable() {
             let checkedTa = {};
             
             dataDatabase.forEach(dbItem => {
-                if (normalizeName(dbItem.pegawai) === normalizeName(item.nama)) {
+                if (idKey(dbItem.pegawai, dbItem.bidang) === idKey(item.nama, item.bidang)) {
                     let ta = getTahunAjaran(dbItem.tanggal);
                     checkedTa[ta] = true;
                 }
             });
             
             Object.keys(checkedTa).forEach(ta => {
-                let info = getPlafonInfo(item.nama, ta);
+                let info = getPlafonInfo(item.nama, ta, item.bidang);
                 if (info.spouseCoversForMe > 0) {
                     isCoveredBySpouse = true;
                 }
@@ -2429,7 +2525,8 @@ function exportFullExcel() {
             Object.keys(dataPlafon[nama]).forEach(ta => {
                 let info = getPlafonInfo(nama, ta);
                 plafonExport.push({ 
-                    Pegawai: nama, 
+                    Pegawai: parseKey(nama).nama, 
+                    Bidang: parseKey(nama).bidang || getBidangByPegawai(parseKey(nama).nama), 
                     TahunAjaran: ta, 
                     TotalPlafon: info.plafonTotal, 
                     TerpakaiSendiri: info.ownUsage,
@@ -2630,14 +2727,19 @@ async function loadInitialData() {
             biaya_pribadi: Number(r.biaya_pribadi) || 0
         }));
 
+        // Plafon: identitas = NAMA (+ BIDANG bila nama kembar)
+        plafonRaw = plafon.map(p => ({
+            nama: normalizeName(p.pegawai_nama),
+            bidang: normalizeName(p.bidang),
+            ta: formatTahunAjaran(p.tahun_ajaran),
+            total: Number(p.total_plafon) || 0   // kolom numeric Supabase bisa berupa string
+        })).filter(r => r.nama && r.ta);
+        dupNames = computeDupNames(dataMasterPegawai, plafonRaw);
         dataPlafon = {};
-        plafon.forEach(p => {
-            let pName = normalizeName(p.pegawai_nama);
-            let cleanTa = formatTahunAjaran(p.tahun_ajaran);
-            if (!pName || !cleanTa) return;
-            if (!dataPlafon[pName]) dataPlafon[pName] = {};
-            // [FIX] kolom numeric Supabase bisa terkirim sebagai string -> paksa Number
-            dataPlafon[pName][cleanTa] = Number(p.total_plafon) || 0;
+        plafonRaw.forEach(r => {
+            let k = idKey(r.nama, r.bidang);
+            if (!dataPlafon[k]) dataPlafon[k] = {};
+            dataPlafon[k][r.ta] = r.total;
         });
 
         dataCicilan = cicilan.map(c => ({ ...c, pegawai: normalizeName(c.pegawai), riwayat: [] }));
