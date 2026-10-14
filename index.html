@@ -898,126 +898,156 @@ async function autoSavePlafon(inputEl) {
     inputEl.disabled = false;
 }
 
-// [NEW] AUTO-SAVE NAMA PEGAWAI - Hapus record lama, insert record baru
+// ===== [FIX] AUTO-SAVE NAMA PEGAWAI - INSERT FIRST, THEN DELETE =====
 async function autoSavePlafonName(selectEl) {
     let oldPegawai = selectEl.dataset.oldPegawai;
     let ta = selectEl.dataset.ta;
     let newPegawai = selectEl.value;
+    
     if (!oldPegawai || !ta || !newPegawai) return;
     if (normalizeName(oldPegawai) === normalizeName(newPegawai)) return;
+    
     let oldPName = normalizeName(oldPegawai);
     let newPName = normalizeName(newPegawai);
     let currentPlafon = (dataPlafon[oldPName] && dataPlafon[oldPName][ta]) ? dataPlafon[oldPName][ta] : 0;
+    
     // Cek jika nama baru sudah punya plafon di TA yg sama
     let existingPlafon = (dataPlafon[newPName] && dataPlafon[newPName][ta]) ? dataPlafon[newPName][ta] : 0;
     if (existingPlafon > 0 && existingPlafon !== currentPlafon) {
         if (!confirm(`"${newPegawai}" sudah punya plafon ${formatRupiah(existingPlafon)} di TA ${ta}. Timpa dengan ${formatRupiah(currentPlafon)}?`)) {
-            selectEl.value = oldPegawai; return;
+            // Revert select ke nilai lama
+            selectEl.value = oldPegawai;
+            return;
         }
     }
+    
     selectEl.classList.remove('saved', 'error');
     selectEl.classList.add('saving');
     selectEl.disabled = true;
+    
     try {
-        // Hapus record lama
-        const { error: errDel } = await db.from('plafon_kesehatan').delete().eq('pegawai_nama', oldPName).eq('tahun_ajaran', ta);
-        if (errDel) throw errDel;
-        // Insert record baru
-        const { error: errIns } = await db.from('plafon_kesehatan').upsert({ pegawai_nama: newPName, tahun_ajaran: ta, total_plafon: currentPlafon }, { onConflict: 'pegawai_nama,tahun_ajaran' });
+        // [FIX] 1. INSERT/UPSERT RECORD BARU DULU - data tidak akan hilang
+        const { error: errIns } = await db.from('plafon_kesehatan').upsert(
+            { pegawai_nama: newPName, tahun_ajaran: ta, total_plafon: currentPlafon },
+            { onConflict: 'pegawai_nama,tahun_ajaran' }
+        );
         if (errIns) throw errIns;
-        // Update local data
-        if (dataPlafon[oldPName]) { delete dataPlafon[oldPName][ta]; if (Object.keys(dataPlafon[oldPName]).length === 0) delete dataPlafon[oldPName]; }
+        
+        // [FIX] 2. BARU HAPUS RECORD LAMA (setelah record baru pasti tersimpan)
+        if (oldPName !== newPName) {
+            const { error: errDel } = await db.from('plafon_kesehatan')
+                .delete()
+                .eq('pegawai_nama', oldPName)
+                .eq('tahun_ajaran', ta);
+            // Jika delete gagal, tidak masalah - record baru sudah ada
+            // Hanya log warning saja
+            if (errDel) console.warn('Delete old record warning:', errDel.message);
+        }
+        
+        // 3. Update local data
+        if (dataPlafon[oldPName]) { 
+            delete dataPlafon[oldPName][ta]; 
+            if (Object.keys(dataPlafon[oldPName]).length === 0) delete dataPlafon[oldPName]; 
+        }
         if (!dataPlafon[newPName]) dataPlafon[newPName] = {};
         dataPlafon[newPName][ta] = currentPlafon;
+        
         selectEl.classList.remove('saving');
         selectEl.classList.add('saved');
         setTimeout(() => selectEl.classList.remove('saved'), 2000);
         selectEl.dataset.oldPegawai = newPegawai;
-        // Update bidang cell
-        let row = selectEl.closest('tr');
-        if (row) {
-            let bidangCell = row.querySelector('.bidang-cell');
-            if (bidangCell) { let newBidang = getBidangByPegawai(newPegawai); bidangCell.innerHTML = escapeHtml(newBidang); }
-            // Update TA input data-pegawai
-            let taInput = row.querySelector('.inline-plafon-ta');
-            if (taInput) { taInput.dataset.pegawai = newPegawai; }
-            // Update total plafon input data-pegawai
-            let plafonInput = row.querySelector('.inline-plafon-input');
-            if (plafonInput) { plafonInput.dataset.pegawai = newPegawai; }
-            // Update computed cells
-            let info = getPlafonInfo(newPegawai, ta);
-            let sisaCell = row.querySelector('.sisa-cell');
-            if (sisaCell) { sisaCell.innerHTML = formatRupiah(info.sisa); sisaCell.className = 'fw-bold sisa-cell ' + (info.sisa >= 0 ? 'text-success' : 'text-danger'); }
-        }
+        
         showToast(`Nama dikoreksi: ${oldPegawai} → ${newPegawai}`);
+        
+        // [FIX] 4. RELOAD DATA untuk pastikan sinkron dengan database
+        await loadInitialData();
+        
     } catch (err) {
         selectEl.classList.remove('saving');
         selectEl.classList.add('error');
+        // Revert select ke nilai lama
         selectEl.value = oldPegawai;
         showToast('Gagal mengubah nama: ' + err.message, 'danger');
+        // Reload untuk pastikan tampilan sesuai database
+        await loadInitialData();
     }
+    
     selectEl.disabled = false;
 }
 
-// [NEW] AUTO-SAVE TAHUN AJARAN - Hapus record lama, insert record baru
+// ===== [FIX] AUTO-SAVE TAHUN AJARAN - INSERT FIRST, THEN DELETE =====
 async function autoSavePlafonTA(inputEl) {
     let pegawai = inputEl.dataset.pegawai;
     let oldTA = inputEl.dataset.oldTa;
     let newTA = formatTahunAjaran(inputEl.value);
+    
     if (!pegawai || !oldTA || !newTA) return;
     if (oldTA === newTA) return;
     if (!/^\d{4}\/\d{4}$/.test(newTA)) {
         showToast('Format TA tidak valid! Contoh: 2024/2025', 'warning');
-        inputEl.value = oldTA; return;
+        inputEl.value = oldTA;
+        return;
     }
+    
     let pName = normalizeName(pegawai);
     let currentPlafon = (dataPlafon[pName] && dataPlafon[pName][oldTA]) ? dataPlafon[pName][oldTA] : 0;
+    
     // Cek jika TA baru sudah ada
     let existingPlafon = (dataPlafon[pName] && dataPlafon[pName][newTA]) ? dataPlafon[pName][newTA] : 0;
     if (existingPlafon > 0 && existingPlafon !== currentPlafon) {
         if (!confirm(`TA ${newTA} sudah ada plafon ${formatRupiah(existingPlafon)}. Timpa dengan ${formatRupiah(currentPlafon)}?`)) {
-            inputEl.value = oldTA; return;
+            inputEl.value = oldTA;
+            return;
         }
     }
+    
     inputEl.classList.remove('saved', 'error');
     inputEl.classList.add('saving');
     inputEl.disabled = true;
+    
     try {
-        // Hapus record lama
-        const { error: errDel } = await db.from('plafon_kesehatan').delete().eq('pegawai_nama', pName).eq('tahun_ajaran', oldTA);
-        if (errDel) throw errDel;
-        // Insert record baru
-        const { error: errIns } = await db.from('plafon_kesehatan').upsert({ pegawai_nama: pName, tahun_ajaran: newTA, total_plafon: currentPlafon }, { onConflict: 'pegawai_nama,tahun_ajaran' });
+        // [FIX] 1. INSERT/UPSERT RECORD BARU DULU
+        const { error: errIns } = await db.from('plafon_kesehatan').upsert(
+            { pegawai_nama: pName, tahun_ajaran: newTA, total_plafon: currentPlafon },
+            { onConflict: 'pegawai_nama,tahun_ajaran' }
+        );
         if (errIns) throw errIns;
-        // Update local data
-        if (dataPlafon[pName]) { delete dataPlafon[pName][oldTA]; if (Object.keys(dataPlafon[pName]).length === 0) delete dataPlafon[pName]; }
+        
+        // [FIX] 2. BARU HAPUS RECORD LAMA
+        if (oldTA !== newTA) {
+            const { error: errDel } = await db.from('plafon_kesehatan')
+                .delete()
+                .eq('pegawai_nama', pName)
+                .eq('tahun_ajaran', oldTA);
+            if (errDel) console.warn('Delete old TA record warning:', errDel.message);
+        }
+        
+        // 3. Update local data
+        if (dataPlafon[pName]) { 
+            delete dataPlafon[pName][oldTA]; 
+            if (Object.keys(dataPlafon[pName]).length === 0) delete dataPlafon[pName]; 
+        }
         if (!dataPlafon[pName]) dataPlafon[pName] = {};
         dataPlafon[pName][newTA] = currentPlafon;
+        
         inputEl.classList.remove('saving');
         inputEl.classList.add('saved');
         setTimeout(() => inputEl.classList.remove('saved'), 2000);
         inputEl.dataset.oldTa = newTA;
-        // Update total plafon input data-ta
-        let row = inputEl.closest('tr');
-        if (row) {
-            let plafonInput = row.querySelector('.inline-plafon-input');
-            if (plafonInput) { plafonInput.dataset.ta = newTA; }
-            let nameSelect = row.querySelector('.inline-plafon-name');
-            if (nameSelect) { nameSelect.dataset.ta = newTA; }
-            // Update computed cells
-            let info = getPlafonInfo(pegawai, newTA);
-            let sisaCell = row.querySelector('.sisa-cell');
-            if (sisaCell) { sisaCell.innerHTML = formatRupiah(info.sisa); sisaCell.className = 'fw-bold sisa-cell ' + (info.sisa >= 0 ? 'text-success' : 'text-danger'); }
-            let terpakaiCell = row.querySelector('.terpakai-cell');
-            if (terpakaiCell) { terpakaiCell.innerHTML = formatRupiah(info.terpakai); }
-        }
+        
         showToast(`TA dikoreksi: ${oldTA} → ${newTA}`);
+        
+        // [FIX] 4. RELOAD DATA
+        await loadInitialData();
+        
     } catch (err) {
         inputEl.classList.remove('saving');
         inputEl.classList.add('error');
         inputEl.value = oldTA;
         showToast('Gagal mengubah TA: ' + err.message, 'danger');
+        await loadInitialData();
     }
+    
     inputEl.disabled = false;
 }
 
