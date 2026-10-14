@@ -764,8 +764,6 @@ async function updateAllSystems() {
 }
 
 // ===== FUNGSI UTAMA PLAFON: HITUNG PEMAKAIAN PER TAHUN AJARAN =====
-// [FIX] - Diperbaiki: spouseCover dihitung dari subtotal - cover - pribadi (benar)
-// dan diattribusikan ke plafon pasangan, bukan ke plafon sendiri
 function getPlafonUsageByTA() {
     let usageMap = {};
     dataDatabase.forEach(item => {
@@ -776,12 +774,10 @@ function getPlafonUsageByTA() {
         let pName = normalizeName(item.pegawai);
         
         if (!usageMap[pName]) usageMap[pName] = {};
-        // Pemakaian plafon pegawai sendiri = cover_yayasan
         if (cover > 0) {
             usageMap[pName][ta] = (usageMap[pName][ta] || 0) + cover;
         }
         
-        // spouseCover = nominal yang tertagih ke plafon pasangan
         let spouseCover = subtotal - cover - pribadi;
         if (spouseCover > 0) {
             let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
@@ -797,8 +793,6 @@ function getPlafonUsageByTA() {
     return usageMap;
 }
 
-// [FIX] - Diperbaiki: Hapus legacy excess logic yang menyebabkan plafon jadi 0
-// terpakai = directUsage (ownUsage + iCoverForSpouse), tanpa pengurangan coveredBySpouse
 function getPlafonInfo(pegawai, ta) {
     let pName = normalizeName(pegawai);
     let plafonTotal = (dataPlafon[pName] && dataPlafon[pName][ta]) ? dataPlafon[pName][ta] : 0;
@@ -817,7 +811,6 @@ function getPlafonInfo(pegawai, ta) {
         spouseDirectUsage = (usageMap[spouseNama] && usageMap[spouseNama][ta]) ? usageMap[spouseNama][ta] : 0;
     }
 
-    // Hitung breakdown detail untuk display
     let ownCoverYayasan = 0;
     let spouseCoversForMe = 0;
     let iCoverForSpouse = 0;
@@ -845,9 +838,6 @@ function getPlafonInfo(pegawai, ta) {
         }
     });
 
-    // [FIX] - Hapus legacy excess logic (coveredBySpouse / coveredByMe)
-    // terpakai = directUsage (sudah termasuk ownUsage + iCoverForSpouse)
-    // sisa = plafonTotal - directUsage (bisa negatif jika overused)
     let terpakai = directUsage;
     let sisa = plafonTotal - terpakai;
     
@@ -1173,17 +1163,20 @@ function toggleTanggalNonaktif() {
     divTgl.style.display = status === 'TIDAK AKTIF' ? 'block' : 'none';
 }
 
-// ===== SPOUSE SEARCH FUNCTIONS =====
+// ===== [FIX] SPOUSE SEARCH FUNCTIONS - MENGGUNAKAN EVENT DELEGATION =====
+// Bug lama: inline onclick pada dropdown items rusak karena HTML entity encoding
+// dan interferensi blur event. Fix: gunakan data-idx + event delegation + mousedown prevention
 function filterSpouseOptions() {
     let searchInput = document.getElementById('mpSpouseSearch');
     let dropdown = document.getElementById('mpSpouseDropdown');
     let keyword = searchInput.value.trim().toLowerCase();
     
-    let currentEditId = document.getElementById('mpOriginalNip').value;
-    let currentNip = currentEditId ? dataMasterPegawai.find(p => p.nip === currentEditId)?.nip : null;
+    // [FIX] Gunakan mpOriginalNip langsung sebagai NIP (bukan ID)
+    let currentEditNip = document.getElementById('mpOriginalNip').value;
     
+    // Filter pegawai: exclude diri sendiri saat edit
     let availablePegawai = dataMasterPegawai.filter(p => {
-        if (currentNip && p.nip === currentNip) return false;
+        if (currentEditNip && p.nip === currentEditNip) return false;
         return true;
     });
     
@@ -1197,12 +1190,14 @@ function filterSpouseOptions() {
         ).slice(0, 50);
     }
     
+    // [FIX] Gunakan data-idx alih-alih inline onclick
+    // Ini menghindari masalah HTML entity encoding pada nama dengan karakter khusus
     let html = '';
     if (mpSpouseFilteredData.length === 0) {
         html = '<div class="spouse-search-item text-muted text-center">Tidak ditemukan pegawai yang cocok</div>';
     } else {
-        mpSpouseFilteredData.forEach(p => {
-            html += `<div class="spouse-search-item" onclick="selectSpouse('${p.nip}', '${escapeHtml(p.nama)}')">
+        mpSpouseFilteredData.forEach((p, idx) => {
+            html += `<div class="spouse-search-item" data-idx="${idx}">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${escapeHtml(p.nama)}</strong>
@@ -1215,6 +1210,35 @@ function filterSpouseOptions() {
     }
     dropdown.innerHTML = html;
     dropdown.classList.add('show');
+}
+
+// [FIX] FUNGSI BARU: Setup event delegation untuk dropdown spouse
+// Dipanggil sekali saat DOMContentLoaded, tidak perlu dipanggil ulang saat modal dibuka
+function setupSpouseDropdownEvents() {
+    let dropdown = document.getElementById('mpSpouseDropdown');
+    if (!dropdown) return;
+    
+    // [FIX] Cegah input kehilangan fokus saat klik dropdown item
+    // Tanpa ini, mousedown pada div dropdown menyebabkan input blur,
+    // yang bisa memicu rebuild dropdown sebelum click event sempat firing
+    dropdown.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+    });
+    
+    // [FIX] Event delegation: tangani klik pada dropdown item via data-idx
+    // Lebih andal dari inline onclick yang rentan masalah HTML entity encoding
+    dropdown.addEventListener('click', function(e) {
+        let item = e.target.closest('.spouse-search-item');
+        if (!item) return;
+        
+        let idx = parseInt(item.dataset.idx);
+        if (isNaN(idx) || !mpSpouseFilteredData[idx]) return;
+        
+        // Ambil data pegawai dari array (bukan dari HTML attribute)
+        // Ini mencegah masalah encoding nama dengan karakter khusus
+        let p = mpSpouseFilteredData[idx];
+        selectSpouse(p.nip, p.nama);
+    });
 }
 
 function selectSpouse(nip, nama) {
@@ -1234,6 +1258,8 @@ function clearSpouseSelection() {
     document.getElementById('mpSpouseDropdown').classList.remove('show');
 }
 
+// [FIX] Document click handler untuk menutup dropdown saat klik di luar
+// Tetap dipertahankan untuk UX, tidak mengganggu event delegation di atas
 document.addEventListener('click', function(e) {
     const container = e.target.closest('.spouse-search-container');
     if (!container) {
@@ -1276,6 +1302,7 @@ function openModalMasterPegawai(mode, id = null) {
         divTglNonaktif.style.display = currentPegawai.status === 'TIDAK AKTIF' ? 'block' : 'none';
         document.getElementById('mpTanggalNonaktif').value = currentPegawai.tanggal_nonaktif ? parseExcelDate(currentPegawai.tanggal_nonaktif) : '';
         
+        // [FIX] Pastikan selectSpouse dipanggil setelah data tersedia
         if (currentPegawai.spouse_nip) {
             let spouseInfo = dataMasterPegawai.find(p => p.nip === currentPegawai.spouse_nip);
             if (spouseInfo) {
@@ -1290,6 +1317,13 @@ function openModalMasterPegawai(mode, id = null) {
     showModal('modalMasterPegawai');
 }
 
+// ===== [FIX] saveMasterPegawai - Perbaikan logika bidirectional spouse =====
+// Bug lama: 
+// 1. Jika spouse_nip tidak terisi (karena klik dropdown tidak berfungsi), 
+//    data tersimpan tanpa spouse
+// 2. Logika update pasangan lama tidak lengkap - tidak clear old spouse
+//    saat spouse berubah
+// 3. Tidak handle case: insert baru dengan spouse
 async function saveMasterPegawai(event) {
     event.preventDefault();
     let origNip = document.getElementById('mpOriginalNip').value;
@@ -1303,24 +1337,41 @@ async function saveMasterPegawai(event) {
     
     if (!nip || !nama) { showToast('NIP dan Nama wajib diisi!', 'warning'); return; }
 
+    // [FIX] Normalisasi spouse NIP ke uppercase untuk konsistensi
+    if (spouseNip) spouseNip = spouseNip.trim().toUpperCase();
+
     let payload = { nip, nama, bidang, departemen, status, tanggal_nonaktif: tanggalNonaktif, spouse_nip: spouseNip };
     
     showLoading(true);
     try {
         if (origNip === '') {
+            // ===== MODE INSERT (Tambah Pegawai Baru) =====
             const { error } = await db.from('master_pegawai').insert(payload);
             if (error) throw error;
+            
+            // [FIX] Set bidirectional spouse reference untuk insert baru
+            if (spouseNip) {
+                await db.from('master_pegawai').update({ spouse_nip: nip }).eq('nip', spouseNip);
+            }
         } else {
+            // ===== MODE UPDATE (Edit Pegawai) =====
+            // [FIX] Simpan old spouse NIP sebelum update untuk perbandingan
+            let oldPegawai = dataMasterPegawai.find(x => x.nip === origNip);
+            let oldSpouseNip = oldPegawai?.spouse_nip || null;
+            
+            // Update data pegawai saat ini
             const { error } = await db.from('master_pegawai').update(payload).eq('nip', origNip);
             if (error) throw error;
             
-            if (spouseNip) {
+            // [FIX] Clear old spouse's reference jika spouse berubah atau dihapus
+            // (Hanya jika old spouse berbeda dengan new spouse)
+            if (oldSpouseNip && oldSpouseNip !== spouseNip) {
+                await db.from('master_pegawai').update({ spouse_nip: null }).eq('nip', oldSpouseNip);
+            }
+            
+            // [FIX] Set new spouse's bidirectional reference jika spouse baru berbeda
+            if (spouseNip && spouseNip !== oldSpouseNip) {
                 await db.from('master_pegawai').update({ spouse_nip: nip }).eq('nip', spouseNip);
-            } else {
-                let oldPegawai = dataMasterPegawai.find(x => x.nip === origNip);
-                if (oldPegawai && oldPegawai.spouse_nip) {
-                    await db.from('master_pegawai').update({ spouse_nip: null }).eq('nip', oldPegawai.spouse_nip);
-                }
             }
         }
         await loadInitialData();
@@ -1498,12 +1549,6 @@ function autofillBidangPegawai() {
     }
 }
 
-// ===== [FIX] ENHANCED PLAFON AVAILABILITY CHECK =====
-// Bug lama: biayaPribadi dihitung dari userCoverInput (input user), 
-//   BUKAN dari coverByMe + totalSpouseCover (cover aktual).
-// Akibatnya: selisih yang tidak tercover malah dihitung sebagai spouseCover,
-// membuat plafon pasangan tertagih berlebih dan plafon SDM menjadi 0.
-// Fix: biayaPribadi = subtotal - coverByMe - coverBySpouseForCover
 function checkPlafonAvailability() {
     let pegawai = document.getElementById('dbPegawai').value.trim();
     let tanggal = document.getElementById('dbTanggal').value;
@@ -1523,7 +1568,6 @@ function checkPlafonAvailability() {
     let ta = getTahunAjaran(tanggal);
     let info = getPlafonInfo(pegawai, ta);
     
-    // Get current saved values if editing
     let editingId = document.getElementById('dbId').value;
     let currentSavedCover = 0;
     let currentSavedPribadi = 0;
@@ -1537,20 +1581,16 @@ function checkPlafonAvailability() {
         }
     }
     
-    // Hitung sisa plafon pegawai (exclude record saat ini)
     let usageMap = getPlafonUsageByTA();
     let pName = normalizeName(pegawai);
     let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
     directUsage -= currentSavedCover;
     let currentSpouseCover = currentSavedSubtotal - currentSavedCover - currentSavedPribadi;
     if (currentSpouseCover > 0) {
-        // currentSpouseCover was charged to spouse, need to exclude it from directUsage
-        // (it's already in usageMap[pName] because directUsage includes iCoverForSpouse)
         directUsage -= currentSpouseCover;
     }
     let employeeAvail = Math.max(0, info.plafonTotal - directUsage);
     
-    // Hitung info pasangan
     let pegawaiInfo = dataMasterPegawai.find(p => normalizeName(p.nama) === pName);
     let spouseNip = pegawaiInfo?.spouse_nip;
     let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
@@ -1567,22 +1607,16 @@ function checkPlafonAvailability() {
         spouseAvail = Math.max(0, spousePlafonTotal - spouseDirectUsage);
     }
     
-    // === PERHITUNGAN UTAMA (FIXED) ===
-    // 1. Cover dari plafon pegawai sendiri
     let coverByMe = Math.min(userCoverInput, employeeAvail);
     
-    // 2. Sisa Cover Yayasan yang tidak tertutup plafon pegawai → dicover pasangan
     let remainingForCover = userCoverInput - coverByMe;
     let coverBySpouseForCover = 0;
     if (spouseInfo && remainingForCover > 0) {
         coverBySpouseForCover = Math.min(remainingForCover, spouseAvail);
     }
     
-    // [FIX] 3. Biaya Pribadi = subtotal - coverByMe - coverBySpouseForCover
-    // (Bukan subtotal - userCoverInput! Itu bug lama yang menyebabkan plafon jadi 0)
     let biayaPribadi = Math.max(0, subtotal - coverByMe - coverBySpouseForCover);
     
-    // 4. Pasangan cover Biaya Pribadi
     let coverBySpouseForPribadi = 0;
     if (spouseInfo && biayaPribadi > 0) {
         let spouseRemaining = spouseAvail - coverBySpouseForCover;
@@ -1590,14 +1624,11 @@ function checkPlafonAvailability() {
         biayaPribadi -= coverBySpouseForPribadi;
     }
     
-    // Total spouse coverage
     let totalSpouseCover = coverBySpouseForCover + coverBySpouseForPribadi;
     
-    // Update form: cover_yayasan = coverByMe (hanya plafon pegawai), biaya_pribadi = sisa
     document.getElementById('dbCover').value = coverByMe;
     document.getElementById('dbPribadi').value = biayaPribadi;
     
-    // Show breakdown card
     breakdownCard.style.display = 'block';
     document.getElementById('breakdownCoverSelf').innerText = formatRupiah(coverByMe);
     
@@ -1625,7 +1656,6 @@ function checkPlafonAvailability() {
     
     document.getElementById('breakdownPribadi').innerText = formatRupiah(biayaPribadi);
     
-    // Sisa plafon info
     let sisaPlafonInfo = document.getElementById('breakdownPlafonInfo');
     if (info.plafonTotal > 0) {
         sisaPlafonInfo.style.display = 'flex';
@@ -1637,7 +1667,6 @@ function checkPlafonAvailability() {
         sisaPlafonInfo.style.display = 'none';
     }
     
-    // Sisa spouse plafon info
     let sisaSpouseInfo = document.getElementById('breakdownSpousePlafonInfo');
     if (spouseInfo && spousePlafonTotal > 0) {
         sisaSpouseInfo.style.display = 'flex';
@@ -1647,7 +1676,6 @@ function checkPlafonAvailability() {
         sisaSpouseInfo.style.display = 'none';
     }
     
-    // Info text
     let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
     if (totalSpouseCover > 0) infoText += ` + Cover Pasangan: ${formatRupiah(totalSpouseCover)}`;
     if (biayaPribadi > 0) infoText += ` + Biaya Pribadi: ${formatRupiah(biayaPribadi)}`;
@@ -1776,7 +1804,7 @@ async function importDatabaseExcel(event) {
     }; reader.readAsArrayBuffer(file);
 }
 
-// ===== PLAFON PER TAHUN AJARAN (ENHANCED WITH SPOUSE USAGE COLUMNS) =====
+// ===== PLAFON PER TAHUN AJARAN =====
 function renderPlafonTable() {
     let searchKeyword = (document.getElementById('searchPlafon')?.value || '').toLowerCase();
     let globalTa = document.getElementById('filterTahunAjaran').value;
@@ -1851,12 +1879,10 @@ function renderPlafonTable() {
         
         let progressBar = info.plafonTotal > 0 ? `<div class="plafon-progress mb-1"><div class="plafon-progress-bar ${barColor}" style="width:${persen}%"></div></div><small class="text-muted">${persen.toFixed(1)}% terpakai</small>` : '<small class="text-muted">Belum ada plafon</small>';
         
-        // Dipakai Pasangan = iCoverForSpouse (plafon pegawai ini dipakai oleh pasangan)
         let dipakaiPasanganDisplay = info.iCoverForSpouse > 0
             ? `<span class="text-primary fw-bold">${formatRupiah(info.iCoverForSpouse)}</span><br><small class="text-primary">oleh ${escapeHtml(info.spouseNama)}</small>`
             : '<span class="text-muted">-</span>';
         
-        // Tercover Pasangan = spouseCoversForMe (pasangan cover untuk pegawai ini)
         let tercoverPasanganDisplay = info.spouseCoversForMe > 0
             ? `<span class="text-info fw-bold">${formatRupiah(info.spouseCoversForMe)}</span><br><small class="text-info">dari ${escapeHtml(info.spouseNama)}</small>`
             : (info.coveredBySpouse > 0
@@ -1897,7 +1923,6 @@ function showPlafonDetail(pegawaiName, ta) {
     let userClaims = dataDatabase.filter(item => normalizeName(item.pegawai) === pName && getTahunAjaran(item.tanggal) === ta && (Number(item.cover_yayasan) || 0) > 0); 
     let html = ''; 
     let info = getPlafonInfo(pegawaiName, ta);
-    let directClaim = info.ownUsage || 0;
     
     html = `<tr class="table-info"><td colspan="5" class="text-end fw-bold">Total Plafon TA ${ta}:</td><td class="fw-bold text-primary">${formatRupiah(info.plafonTotal)}</td></tr>`;
     
@@ -2258,7 +2283,6 @@ function renderSdmTable() {
         
         let badgeHutang = '';
         if (grossHutang === 0) {
-            // Cek apakah pegawai ini pernah pakai plafon pasangannya
             let isCoveredBySpouse = false;
             let checkedTa = {};
             
@@ -2488,7 +2512,7 @@ async function migrateLocalToSupabase() {
     showLoading(false);
 }
 
-// ===== INITIAL DATA LOADER =====
+// ===== [FIX] INITIAL DATA LOADER - Tambahkan normalisasi NIP =====
 async function loadInitialData() {
     try {
         updateCloudStatus('syncing', 'Memuat data...');
@@ -2499,12 +2523,14 @@ async function loadInitialData() {
         dataMasterDept = (dept || []).map(d => ({ ...d, nama_departemen: normalizeName(d.nama_departemen) }));
 
         let { data: pegawai } = await db.from('master_pegawai').select('*');
+        // [FIX] Normalisasi NIP ke uppercase untuk konsistensi pencarian spouse
         dataMasterPegawai = (pegawai || []).map(p => ({ 
             ...p, 
+            nip: p.nip ? String(p.nip).trim().toUpperCase() : p.nip,
             nama: normalizeName(p.nama), 
             bidang: normalizeName(p.bidang), 
             departemen: normalizeName(p.departemen),
-            spouse_nip: p.spouse_nip ? p.spouse_nip.trim().toUpperCase() : null 
+            spouse_nip: p.spouse_nip ? String(p.spouse_nip).trim().toUpperCase() : null 
         }));
 
         let { data: rujukan } = await db.from('database_rujukan').select('*').order('tanggal', { ascending: false });
@@ -2549,8 +2575,10 @@ async function loadInitialData() {
     }
 }
 
+// ===== [FIX] DOMContentLoaded - Tambahkan setupSpouseDropdownEvents =====
 window.addEventListener('DOMContentLoaded', () => { 
     setupFileInputs(); 
+    setupSpouseDropdownEvents(); // [FIX] Setup event delegation untuk dropdown spouse
     loadInitialData();
     setTimeout(setupRealtimeSync, 2000);
     hitungSimulasi(); 
