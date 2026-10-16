@@ -244,7 +244,7 @@
                     <button class="btn btn-success btn-sm" onclick="openModalPlafon()"><i class="fa-solid fa-plus me-1"></i> Set Plafon</button>
                 </div>
             </div>
-            <div class="alert alert-success py-2 small mb-3"><i class="fa-solid fa-shield me-1"></i> <strong>Sistem Otomatis:</strong> Import Excel plafon akan otomatis dihubungkan per Tahun Ajaran. Pengurangan plafon otomatis dihitung dari Database Rujukan (Cover Yayasan) sesuai TA masing-masing. Jika plafon habis, sistem akan otomatis mengambil dari plafon pasangan (Suami/Istri).</div>
+            <div class="alert alert-success py-2 small mb-3"><i class="fa-solid fa-shield me-1"></i> <strong>Sistem Otomatis:</strong> Import Excel plafon akan otomatis dihubungkan per Tahun Ajaran. Pengurangan plafon otomatis dihitung dari Database Rujukan (Cover Yayasan) sesuai TA masing-masing. Jika plafon sendiri habis dan biayanya dicover yayasan, sisanya ditagihkan ke plafon pasangan (Suami/Istri). Bagian yang tidak dicover yayasan menjadi hutang pegawai, tidak otomatis ditagih ke pasangan.</div>
             <div class="row g-2 mb-3">
                 <div class="col-md-4"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
                 <div class="col-md-3">
@@ -290,6 +290,7 @@
                     <button class="btn btn-success btn-sm" onclick="openModalCicilan()"><i class="fa-solid fa-plus me-1"></i> Buat Kesepakatan Cicilan</button>
                 </div>
             </div>
+            <div id="alertHutangNonaktif"></div>
             <div class="row g-2 mb-3">
                 <div class="col-md-6"><input type="text" id="searchCicilan" class="form-control form-control-sm" placeholder="Cari nama pegawai..." onkeyup="currentPageCicilan=1; renderCicilanTable();"></div>
                 <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="cicilanPageSize" class="form-select form-select-sm" onchange="currentPageCicilan=1; renderCicilanTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
@@ -410,6 +411,7 @@
                             <span><i class="fa-solid fa-wallet me-1"></i> Biaya Pribadi / Hutang:</span>
                             <span class="text-danger" id="breakdownPribadi">Rp 0</span>
                         </div>
+                        <div class="alert alert-warning py-2 small mt-2 mb-0" id="breakdownNonaktifNote" style="display:none;"><i class="fa-solid fa-user-slash me-1"></i> <strong>Pegawai berstatus TIDAK AKTIF</strong> dan memiliki hutang pada rujukan ini. Hutang dapat diajukan sebagai <strong>Kebijakan Yayasan</strong> (ditanggung yayasan) melalui menu <em>Cicilan &amp; Potongan</em>.</div>
                         <div class="plafon-breakdown-row" id="breakdownPlafonInfo" style="display:none;">
                             <span class="text-muted small"><i class="fa-solid fa-info-circle me-1"></i> Sisa Plafon Sendiri setelah tagihan ini:</span>
                             <span class="fw-bold small" id="breakdownSisaPlafon">Rp 0</span>
@@ -878,9 +880,10 @@ async function updateAllSystems() {
 }
 
 // ===== FUNGSI UTAMA PLAFON: HITUNG PEMAKAIAN PER TAHUN AJARAN =====
-function getPlafonUsageByTA() {
+function getPlafonUsageByTA(excludeId) {
     let usageMap = {};
     dataDatabase.forEach(item => {
+        if (excludeId && String(item.id) === String(excludeId)) return; // abaikan rujukan yang sedang diedit
         let cover = Number(item.cover_yayasan) || 0;
         let pribadi = Number(item.biaya_pribadi) || 0;
         let subtotal = Number(item.subtotal) || 0;
@@ -1649,7 +1652,7 @@ function openModalDatabase(mode, id = null) {
         document.getElementById('dbTagihan').value = item.tagihan;
         document.getElementById('dbDiskon').value = (Number(item.tagihan) || 0) - (Number(item.subtotal) || 0);
         document.getElementById('dbSubtotal').value = item.subtotal;
-        document.getElementById('dbCover').value = Number(item.cover_yayasan) || 0;
+        document.getElementById('dbCover').value = Math.max(0, (Number(item.subtotal) || 0) - (Number(item.biaya_pribadi) || 0));
         calcBiayaPribadi();
         checkPlafonAvailability();
     }
@@ -1668,144 +1671,124 @@ function autofillBidangPegawai() {
     }
 }
 
+// Pembagian tagihan rujukan.
+// ATURAN: "Cover Yayasan" (input) dibebankan ke plafon sendiri. HANYA jika plafon sendiri habis,
+// sisa yang dicover yayasan dibebankan ke plafon pasangan. Bagian yang tidak dicover yayasan
+// (atau yang tidak tertampung plafon sendiri maupun pasangan) menjadi biaya pribadi / HUTANG
+// dan TIDAK PERNAH otomatis ditagih ke pasangan.
+function computeRujukanSplit() {
+    const pegawai = document.getElementById('dbPegawai').value.trim();
+    const tanggal = document.getElementById('dbTanggal').value;
+    const bidangInput = document.getElementById('dbBidang').value.trim();
+    const subtotal = Math.max(0, parseFloat(document.getElementById('dbSubtotal').value) || 0);
+    const intent = Math.min(Math.max(0, parseFloat(document.getElementById('dbCover').value) || 0), subtotal);
+    const res = {
+        ready: false, ta: null, subtotal, intent, plafonTotal: 0, ownAvail: 0,
+        pegawaiInfo: null, spouseInfo: null, spouseName: null, spousePlafonTotal: 0, spouseAvail: 0,
+        coverByMe: intent, spouseCover: 0, pribadi: subtotal - intent, belumTertampung: 0
+    };
+    if (!pegawai || !tanggal) return res;
+
+    const ta = getTahunAjaran(tanggal);
+    const editingId = document.getElementById('dbId').value || null;
+    const usageMap = getPlafonUsageByTA(editingId); // pemakaian TANPA rujukan yang sedang diedit
+
+    const key = idKey(pegawai, bidangInput);
+    res.plafonTotal = (dataPlafon[key] && dataPlafon[key][ta]) ? dataPlafon[key][ta] : 0;
+    const directUsage = (usageMap[key] && usageMap[key][ta]) ? usageMap[key][ta] : 0;
+    res.ownAvail = Math.max(0, res.plafonTotal - directUsage);
+
+    res.pegawaiInfo = findMaster(pegawai, bidangInput);
+    const spouseNip = res.pegawaiInfo?.spouse_nip;
+    res.spouseInfo = spouseNip ? (dataMasterPegawai.find(p => p.nip === spouseNip) || null) : null;
+    if (res.spouseInfo) {
+        res.spouseName = normalizeName(res.spouseInfo.nama);
+        const sKey = idKey(res.spouseInfo.nama, res.spouseInfo.bidang);
+        res.spousePlafonTotal = (dataPlafon[sKey] && dataPlafon[sKey][ta]) ? dataPlafon[sKey][ta] : 0;
+        const sUsage = (usageMap[sKey] && usageMap[sKey][ta]) ? usageMap[sKey][ta] : 0;
+        res.spouseAvail = Math.max(0, res.spousePlafonTotal - sUsage);
+    }
+
+    res.ready = true;
+    res.ta = ta;
+    res.coverByMe = Math.min(intent, res.ownAvail);
+    const sisaCover = intent - res.coverByMe;                  // dicover yayasan tapi plafon sendiri habis
+    res.spouseCover = res.spouseInfo ? Math.min(sisaCover, res.spouseAvail) : 0;
+    res.belumTertampung = sisaCover - res.spouseCover;         // tidak tertampung plafon manapun -> hutang
+    res.pribadi = subtotal - res.coverByMe - res.spouseCover;  // = bagian non-cover + belumTertampung
+    return res;
+}
+
 function checkPlafonAvailability() {
-    let pegawai = document.getElementById('dbPegawai').value.trim();
-    let tanggal = document.getElementById('dbTanggal').value;
-    let userCoverInput = Math.min(parseFloat(document.getElementById('dbCover').value) || 0, parseFloat(document.getElementById('dbSubtotal').value) || 0);
-    let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0;
     let infoEl = document.getElementById('plafonInfoText');
     let breakdownCard = document.getElementById('plafonBreakdownCard');
-    
-    if (!pegawai || !tanggal) { 
-        infoEl.className = 'text-muted'; 
-        infoEl.innerText = 'Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover.'; 
+    let r = computeRujukanSplit();
+    document.getElementById('dbPribadi').value = r.pribadi;
+
+    if (!r.ready) {
+        infoEl.className = 'text-muted';
+        infoEl.innerText = 'Otomatis terisi sesuai Sub Total. Ubah jika hanya sebagian yang dicover.';
         breakdownCard.style.display = 'none';
-        document.getElementById('dbPribadi').value = Math.max(0, subtotal - userCoverInput);
-        return; 
+        return;
     }
-    
-    let ta = getTahunAjaran(tanggal);
-    let bidangInput = document.getElementById('dbBidang').value.trim();
-    let info = getPlafonInfo(pegawai, ta, bidangInput);
-    
-    let editingId = document.getElementById('dbId').value;
-    let currentSavedCover = 0;
-    let currentSavedPribadi = 0;
-    let currentSavedSubtotal = 0;
-    if (editingId !== '') {
-        let editingItem = dataDatabase.find(x => x.id === editingId);
-        if (editingItem && idKey(editingItem.pegawai, editingItem.bidang) === idKey(pegawai, bidangInput) && getTahunAjaran(editingItem.tanggal) === ta) {
-            currentSavedCover = Number(editingItem.cover_yayasan) || 0;
-            currentSavedPribadi = Number(editingItem.biaya_pribadi) || 0;
-            currentSavedSubtotal = Number(editingItem.subtotal) || 0;
-        }
-    }
-    
-    let usageMap = getPlafonUsageByTA();
-    let pName = idKey(pegawai, bidangInput);
-    let directUsage = (usageMap[pName] && usageMap[pName][ta]) ? usageMap[pName][ta] : 0;
-    directUsage -= currentSavedCover;
-    let currentSpouseCover = currentSavedSubtotal - currentSavedCover - currentSavedPribadi;
-    if (currentSpouseCover > 0) {
-        directUsage -= currentSpouseCover;
-    }
-    let employeeAvail = Math.max(0, info.plafonTotal - directUsage);
-    
-    let pegawaiInfo = findMaster(pegawai, bidangInput);
-    let spouseNip = pegawaiInfo?.spouse_nip;
-    let spouseInfo = spouseNip ? dataMasterPegawai.find(p => p.nip === spouseNip) : null;
-    let spouseName = spouseInfo ? normalizeName(spouseInfo.nama) : null;
-    let spouseKey = spouseInfo ? idKey(spouseInfo.nama, spouseInfo.bidang) : null;
-    
-    let spouseAvail = 0;
-    let spousePlafonTotal = 0;
-    if (spouseInfo) {
-        let spouseDirectUsage = (usageMap[spouseKey] && usageMap[spouseKey][ta]) ? usageMap[spouseKey][ta] : 0;
-        if (currentSpouseCover > 0) {
-            spouseDirectUsage -= currentSpouseCover;
-        }
-        spousePlafonTotal = (dataPlafon[spouseKey] && dataPlafon[spouseKey][ta]) ? dataPlafon[spouseKey][ta] : 0;
-        spouseAvail = Math.max(0, spousePlafonTotal - spouseDirectUsage);
-    }
-    
-    let coverByMe = Math.min(userCoverInput, employeeAvail);
-    
-    let remainingForCover = userCoverInput - coverByMe;
-    let coverBySpouseForCover = 0;
-    if (spouseInfo && remainingForCover > 0) {
-        coverBySpouseForCover = Math.min(remainingForCover, spouseAvail);
-    }
-    
-    let biayaPribadi = Math.max(0, subtotal - coverByMe - coverBySpouseForCover);
-    
-    let coverBySpouseForPribadi = 0;
-    if (spouseInfo && biayaPribadi > 0) {
-        let spouseRemaining = spouseAvail - coverBySpouseForCover;
-        coverBySpouseForPribadi = Math.min(biayaPribadi, spouseRemaining);
-        biayaPribadi -= coverBySpouseForPribadi;
-    }
-    
-    let totalSpouseCover = coverBySpouseForCover + coverBySpouseForPribadi;
-    
-    document.getElementById('dbCover').value = coverByMe;
-    document.getElementById('dbPribadi').value = biayaPribadi;
-    
+
     breakdownCard.style.display = 'block';
-    document.getElementById('breakdownCoverSelf').innerText = formatRupiah(coverByMe);
-    
+    document.getElementById('breakdownCoverSelf').innerText = formatRupiah(r.coverByMe);
+
     let spouseRow = document.getElementById('breakdownSpouseRow');
     let noSpouseRow = document.getElementById('breakdownNoSpouseRow');
-    
-    if (spouseInfo && totalSpouseCover > 0) {
+    if (r.spouseInfo && r.spouseCover > 0) {
         spouseRow.style.display = 'flex';
-        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseName)})`;
-        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(totalSpouseCover);
+        document.getElementById('breakdownSpouseName').innerText = `(${r.spouseName})`;
+        document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(r.spouseCover);
         noSpouseRow.style.display = 'none';
-    } else if (spouseInfo && biayaPribadi > 0 && spouseAvail === 0) {
+    } else if (r.spouseInfo && r.belumTertampung > 0) {
         spouseRow.style.display = 'flex';
-        document.getElementById('breakdownSpouseName').innerText = `(${escapeHtml(spouseName)})`;
+        document.getElementById('breakdownSpouseName').innerText = `(${r.spouseName})`;
         document.getElementById('breakdownCoverSpouse').innerText = formatRupiah(0) + ' (Plafon pasangan juga habis)';
         noSpouseRow.style.display = 'none';
-    } else if (!spouseInfo && biayaPribadi > 0) {
+    } else if (!r.spouseInfo && r.belumTertampung > 0) {
         spouseRow.style.display = 'none';
         noSpouseRow.style.display = 'flex';
-        document.getElementById('breakdownNoSpouse').innerText = formatRupiah(biayaPribadi);
+        document.getElementById('breakdownNoSpouse').innerText = formatRupiah(r.belumTertampung);
     } else {
         spouseRow.style.display = 'none';
         noSpouseRow.style.display = 'none';
     }
-    
-    document.getElementById('breakdownPribadi').innerText = formatRupiah(biayaPribadi);
-    
+
+    document.getElementById('breakdownPribadi').innerText = formatRupiah(r.pribadi);
+
     let sisaPlafonInfo = document.getElementById('breakdownPlafonInfo');
-    if (info.plafonTotal > 0) {
+    if (r.plafonTotal > 0) {
         sisaPlafonInfo.style.display = 'flex';
-        let sisaAfterThis = employeeAvail - coverByMe;
         let sisaEl = document.getElementById('breakdownSisaPlafon');
-        sisaEl.innerText = formatRupiah(sisaAfterThis);
-        sisaEl.className = sisaAfterThis >= 0 ? 'fw-bold small text-success' : 'fw-bold small text-danger';
+        sisaEl.innerText = formatRupiah(r.ownAvail - r.coverByMe);
+        sisaEl.className = 'fw-bold small text-success';
     } else {
         sisaPlafonInfo.style.display = 'none';
     }
-    
+
     let sisaSpouseInfo = document.getElementById('breakdownSpousePlafonInfo');
-    if (spouseInfo && spousePlafonTotal > 0) {
+    if (r.spouseInfo && r.spousePlafonTotal > 0) {
         sisaSpouseInfo.style.display = 'flex';
-        let sisaSpouseAfterThis = spouseAvail - totalSpouseCover;
-        document.getElementById('breakdownSisaSpousePlafon').innerText = formatRupiah(sisaSpouseAfterThis);
+        document.getElementById('breakdownSisaSpousePlafon').innerText = formatRupiah(r.spouseAvail - r.spouseCover);
     } else {
         sisaSpouseInfo.style.display = 'none';
     }
-    
-    let infoText = `Cover Pegawai: ${formatRupiah(coverByMe)}`;
-    if (totalSpouseCover > 0) infoText += ` + Cover Pasangan: ${formatRupiah(totalSpouseCover)}`;
-    if (biayaPribadi > 0) infoText += ` + Biaya Pribadi: ${formatRupiah(biayaPribadi)}`;
+
+    // Catatan: pegawai tidak aktif + punya hutang -> opsi Kebijakan Yayasan
+    let nonaktifNote = document.getElementById('breakdownNonaktifNote');
+    if (nonaktifNote) nonaktifNote.style.display = (r.pegawaiInfo && r.pegawaiInfo.status === 'TIDAK AKTIF' && r.pribadi > 0) ? 'block' : 'none';
+
+    let infoText = `Cover Plafon Sendiri: ${formatRupiah(r.coverByMe)}`;
+    if (r.spouseCover > 0) infoText += ` + Cover Plafon Pasangan: ${formatRupiah(r.spouseCover)}`;
+    if (r.pribadi > 0) infoText += ` + Hutang / Biaya Pribadi: ${formatRupiah(r.pribadi)}`;
     infoEl.className = 'small mt-1 text-muted';
-    infoEl.innerHTML = infoText;
+    infoEl.innerText = infoText;
 }
 
 function calcSubTotal() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = tagihan * 0.10; document.getElementById('dbDiskon').value = diskon; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; document.getElementById('dbCover').value = subtotal; calcBiayaPribadi(); checkPlafonAvailability(); }
-function calcSubTotalManual() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = parseFloat(document.getElementById('dbDiskon').value) || 0; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; let currentCover = parseFloat(document.getElementById('dbCover').value) || 0; if (currentCover === 0 || currentCover > subtotal) { document.getElementById('dbCover').value = subtotal; } calcBiayaPribadi(); checkPlafonAvailability(); }
+function calcSubTotalManual() { let tagihan = parseFloat(document.getElementById('dbTagihan').value) || 0; let diskon = parseFloat(document.getElementById('dbDiskon').value) || 0; let prevSubtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let subtotal = tagihan - diskon; document.getElementById('dbSubtotal').value = subtotal; let currentCover = parseFloat(document.getElementById('dbCover').value) || 0; if (currentCover === 0 || currentCover > subtotal || currentCover === prevSubtotal) { document.getElementById('dbCover').value = subtotal; } calcBiayaPribadi(); checkPlafonAvailability(); }
 function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let cover = parseFloat(document.getElementById('dbCover').value) || 0; if (cover > subtotal) cover = subtotal; if (cover < 0) cover = 0; let pribadi = subtotal - cover; document.getElementById('dbCover').value = cover; document.getElementById('dbPribadi').value = pribadi; checkPlafonAvailability(); }
 
 async function saveDatabase(event) {
@@ -1815,8 +1798,9 @@ async function saveDatabase(event) {
     let bidang = document.getElementById('dbBidang').value.trim();
     let tagihanBruto = parseFloat(document.getElementById('dbTagihan').value) || 0;
     let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0;
-    let cover = parseFloat(document.getElementById('dbCover').value) || 0;
-    let pribadi = parseFloat(document.getElementById('dbPribadi').value) || 0;
+    let split = computeRujukanSplit();
+    let cover = split.coverByMe;      // dibebankan ke plafon sendiri
+    let pribadi = split.pribadi;      // hutang / biaya pribadi (sisa plafon pasangan = subtotal - cover - pribadi)
     let invoice = document.getElementById('dbInvoice').value.trim().toUpperCase();
     let pasien = document.getElementById('dbPasien').value.toUpperCase();
     let poli = document.getElementById('dbPoli').value.toUpperCase();
@@ -2333,12 +2317,43 @@ function getSisaHutangPegawai(pegawaiName) {
     let sisa = totalHutang - totalDibayar; 
     return sisa < 0 ? 0 : sisa; 
 }
+function isPegawaiNonAktif(nama) {
+    const n = normalizeName(nama);
+    const m = dataMasterPegawai.filter(p => normalizeName(p.nama) === n);
+    return m.length > 0 && m.every(p => p.status === 'TIDAK AKTIF');
+}
+function fillMetodeOptions(selectId, nonAktif, selected) {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    let opts = '<option value="POTONG PAYROLL">Potong Payroll</option><option value="CASH">Cash / Transfer</option>';
+    if (nonAktif) opts += '<option value="KEBIJAKAN YAYASAN">Kebijakan Yayasan (Ditanggung Yayasan)</option>';
+    el.innerHTML = opts;
+    el.value = [...el.options].some(o => o.value === selected) ? selected : el.options[0].value;
+}
+// Daftar pegawai TIDAK AKTIF yang masih punya sisa hutang, dengan tombol Kebijakan Yayasan
+function renderAlertHutangNonaktif() {
+    const el = document.getElementById('alertHutangNonaktif');
+    if (!el) return;
+    const seen = new Set(), rows = [];
+    dataMasterPegawai.filter(p => p.status === 'TIDAK AKTIF').forEach(p => {
+        const n = normalizeName(p.nama);
+        if (seen.has(n)) return;
+        seen.add(n);
+        const sisa = getSisaHutangPegawai(p.nama);
+        if (sisa > 0) rows.push({ nama: p.nama, sisa });
+    });
+    if (!rows.length) { el.innerHTML = ''; return; }
+    const total = rows.reduce((a, r) => a + r.sisa, 0);
+    el.innerHTML = '<div class="alert alert-warning small mb-3"><div class="fw-bold mb-1"><i class="fa-solid fa-user-slash me-1"></i> ' + rows.length + ' pegawai TIDAK AKTIF masih memiliki hutang (total ' + formatRupiah(total) + ')</div><div class="mb-2">Yayasan dapat menanggung hutang tersebut melalui <strong>Kebijakan Yayasan</strong>.</div>' +
+        rows.map(r => '<div class="d-flex justify-content-between align-items-center border-top py-1"><span>' + escapeHtml(r.nama) + ' &mdash; <strong class="text-danger">' + formatRupiah(r.sisa) + '</strong></span><button class="btn btn-sm btn-outline-dark" data-nama="' + escapeHtml(r.nama) + '" onclick="openModalCicilan(this.dataset.nama)"><i class="fa-solid fa-building-columns me-1"></i> Kebijakan Yayasan</button></div>').join('') + '</div>';
+}
 function updateKewajibanOtomatis() { 
     let pegawai = document.getElementById('cicPegawai').value; 
     let infoEl = document.getElementById('infoKewajiban'); 
     if (!pegawai) { 
         document.getElementById('cicTotal').value = 0; 
         infoEl.innerHTML = ''; 
+        fillMetodeOptions('cicMetode', false, 'POTONG PAYROLL');
         return; 
     } 
     let hutang = getHutangPegawai(pegawai); 
@@ -2366,9 +2381,35 @@ function updateKewajibanOtomatis() {
     });
     
     infoEl.innerHTML = 'Rincian Akumulasi Hutang: Pribadi (' + formatRupiah(totalPribadi) + ') + Kelebihan Plafon (' + formatRupiah(totalKelebihan) + ') = <strong>' + formatRupiah(hutang) + '</strong>'; 
+
+    // Pegawai TIDAK AKTIF: tersedia opsi Kebijakan Yayasan; nominal default = sisa hutang yang belum terbayar
+    const nonAktif = isPegawaiNonAktif(pegawai);
+    fillMetodeOptions('cicMetode', nonAktif, nonAktif ? 'KEBIJAKAN YAYASAN' : document.getElementById('cicMetode').value);
+    if (nonAktif) {
+        const sisa = getSisaHutangPegawai(pegawai);
+        document.getElementById('cicTotal').value = sisa;
+        infoEl.innerHTML += '<br><span class="text-warning-emphasis"><i class="fa-solid fa-user-slash me-1"></i> Pegawai TIDAK AKTIF. Sisa hutang belum terbayar: <strong>' + formatRupiah(sisa) + '</strong>. Pilih metode <strong>Kebijakan Yayasan</strong> bila hutang ditanggung yayasan.</span>';
+    }
 }
+
 function toggleSkemaCicilan() { let skema = document.getElementById('cicSkema').value; let divTenor = document.getElementById('divTenor'); if (skema === 'BULANAN') { divTenor.classList.remove('d-none'); } else { divTenor.classList.add('d-none'); } }
-function openModalCicilan() { let selectPegawaiHtml = '<option value="">-- Pilih Pegawai --</option>'; dataMasterPegawai.filter(p => p.status === 'AKTIF').forEach(p => { selectPegawaiHtml += '<option value="' + p.nama + '">' + p.nama + ' (' + p.bidang + ')</option>'; }); document.getElementById('cicPegawai').innerHTML = selectPegawaiHtml; document.getElementById('formCicilan').reset(); document.getElementById('cicTanggal').value = new Date().toISOString().split('T')[0]; document.getElementById('cicSkema').value = 'BULANAN'; document.getElementById('infoKewajiban').innerHTML = ''; toggleSkemaCicilan(); showModal('modalCicilan'); }
+function openModalCicilan(preselectNama) { 
+    let selectPegawaiHtml = '<option value="">-- Pilih Pegawai --</option>'; 
+    // Pegawai TIDAK AKTIF hanya ditampilkan bila masih punya sisa hutang
+    dataMasterPegawai.filter(p => p.status === 'AKTIF' || (p.status === 'TIDAK AKTIF' && getSisaHutangPegawai(p.nama) > 0)).forEach(p => { 
+        let na = p.status !== 'AKTIF';
+        selectPegawaiHtml += '<option value="' + escapeHtml(p.nama) + '">' + escapeHtml(p.nama) + ' (' + escapeHtml(p.bidang) + ')' + (na ? ' - TIDAK AKTIF' : '') + '</option>'; 
+    }); 
+    document.getElementById('cicPegawai').innerHTML = selectPegawaiHtml; 
+    document.getElementById('formCicilan').reset(); 
+    document.getElementById('cicTanggal').value = new Date().toISOString().split('T')[0]; 
+    document.getElementById('cicSkema').value = 'BULANAN'; 
+    document.getElementById('infoKewajiban').innerHTML = ''; 
+    fillMetodeOptions('cicMetode', false, 'POTONG PAYROLL');
+    toggleSkemaCicilan(); 
+    if (typeof preselectNama === 'string' && preselectNama) { document.getElementById('cicPegawai').value = preselectNama; updateKewajibanOtomatis(); }
+    showModal('modalCicilan'); 
+}
 async function saveCicilan(event) { 
     event.preventDefault(); 
     let pegawai = document.getElementById('cicPegawai').value; 
@@ -2379,18 +2420,38 @@ async function saveCicilan(event) {
     let keterangan = document.getElementById('cicKeterangan').value; 
     let tanggal = document.getElementById('cicTanggal').value; 
     if (!pegawai || totalKewajiban <= 0) { showToast('Pegawai dan Total Kewajiban wajib diisi!', 'warning'); return; } 
+
+    // Kebijakan Yayasan: hanya untuk pegawai TIDAK AKTIF; hutang langsung dicatat ditanggung yayasan
+    const isKebijakan = metode === 'KEBIJAKAN YAYASAN';
+    if (isKebijakan) {
+        if (!isPegawaiNonAktif(pegawai)) { showToast('Kebijakan Yayasan hanya untuk pegawai yang sudah TIDAK AKTIF.', 'warning'); return; }
+        const sisaHutang = getSisaHutangPegawai(pegawai);
+        if (totalKewajiban > sisaHutang) { showToast('Nominal melebihi sisa hutang pegawai (' + formatRupiah(sisaHutang) + ').', 'warning'); return; }
+        if (!confirm('Hutang ' + normalizeName(pegawai) + ' sebesar ' + formatRupiah(totalKewajiban) + ' akan DITANGGUNG YAYASAN (Kebijakan Yayasan) dan dihapus dari sisa hutang pegawai. Lanjutkan?')) return;
+        keterangan = 'KEBIJAKAN YAYASAN: ' + (keterangan.trim() || 'hutang pegawai tidak aktif ditanggung yayasan');
+        skema = 'LANGSUNG'; tenor = 1;
+    }
     
     let newId = 'CIC' + Date.now(); 
-    let payload = { id: newId, pegawai: normalizeName(pegawai), tanggal, total_kewajiban: totalKewajiban, sisa_kewajiban: totalKewajiban, skema, tenor, metode, keterangan, status: 'AKTIF' };
+    let payload = { id: newId, pegawai: normalizeName(pegawai), tanggal, total_kewajiban: totalKewajiban, sisa_kewajiban: isKebijakan ? 0 : totalKewajiban, skema, tenor, metode, keterangan, status: isKebijakan ? 'LUNAS' : 'AKTIF' };
     
     showLoading(true);
     const { error } = await db.from('cicilan').insert(payload);
-    if (error) showToast('Error: ' + error.message, 'danger');
-    else { await loadInitialData(); hideModal('modalCicilan'); showToast('Kesepakatan cicilan berhasil dibuat!'); }
+    if (error) { showToast('Error: ' + error.message, 'danger'); showLoading(false); return; }
+    if (isKebijakan) {
+        const { error: errR } = await db.from('cicilan_riwayat').insert({ cicilan_id: newId, tanggal, jumlah: totalKewajiban, metode });
+        if (errR) {
+            await db.from('cicilan').delete().eq('id', newId);
+            showToast('Error: ' + errR.message, 'danger'); showLoading(false); return;
+        }
+    }
+    await loadInitialData(); hideModal('modalCicilan'); 
+    showToast(isKebijakan ? 'Hutang dicatat ditanggung Yayasan (Kebijakan Yayasan).' : 'Kesepakatan cicilan berhasil dibuat!');
     showLoading(false);
 }
 
 function renderCicilanTable() {
+    renderAlertHutangNonaktif();
     let searchKeyword = (document.getElementById('searchCicilan')?.value || '').toLowerCase();
     let filteredCicilan = dataCicilan.filter(c => String(c.pegawai || '').toLowerCase().includes(searchKeyword) || String(c.status || '').toLowerCase().includes(searchKeyword));
     let pageSize = parseInt(document.getElementById('cicilanPageSize')?.value) || 15; let totalRows = filteredCicilan.length; let totalPages = Math.ceil(totalRows / pageSize) || 1;
@@ -2398,7 +2459,7 @@ function renderCicilanTable() {
     let html = '';
     paginatedData.forEach((c, index) => {
         let rowNumber = startIndex + index + 1;
-        let statusBadge = c.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : c.status === 'DIBATALKAN' ? '<span class="badge bg-danger">Dibatalkan</span>' : '<span class="badge bg-warning text-dark">Aktif</span>';
+        let statusBadge = (c.metode === 'KEBIJAKAN YAYASAN' && c.status === 'LUNAS') ? '<span class="badge bg-info text-dark">Ditanggung Yayasan</span>' : c.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : c.status === 'DIBATALKAN' ? '<span class="badge bg-danger">Dibatalkan</span>' : '<span class="badge bg-warning text-dark">Aktif</span>';
         let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel)' : 'Langsung Lunas';
         html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + escapeHtml(c.pegawai) + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + escapeHtml(c.metode) + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-danger" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan"><i class="fa-solid fa-ban"></i></button></td></tr>';
     });
@@ -2414,14 +2475,14 @@ function changeCicilanPage(page) { currentPageCicilan = page; renderCicilanTable
 async function showCicilanDetail(cicilanId) { 
     let c = dataCicilan.find(x => x.id === cicilanId); 
     if (!c) return; 
-    document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai; 
+    document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai + (isPegawaiNonAktif(c.pegawai) ? ' (TIDAK AKTIF)' : ''); 
     let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel, Estimasi ' + c.tenor + ' bulan)' : 'Langsung Lunas'; 
     let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
     document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
     document.getElementById('bayarCicilanId').value = c.id; 
     document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0]; 
     document.getElementById('bayarJumlah').value = ''; 
-    document.getElementById('bayarMetode').value = c.metode; 
+    fillMetodeOptions('bayarMetode', isPegawaiNonAktif(c.pegawai), c.metode); 
     
     let html = ''; 
     if (c.riwayat && c.riwayat.length > 0) {
@@ -2442,7 +2503,9 @@ async function bayarCicilan(event) {
     let jumlah = parseFloat(document.getElementById('bayarJumlah').value) || 0; 
     let tanggal = document.getElementById('bayarTanggal').value; 
     let metode = document.getElementById('bayarMetode').value; 
-    if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; } 
+    if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; }
+    if (metode === 'KEBIJAKAN YAYASAN' && !isPegawaiNonAktif(c.pegawai)) { showToast('Kebijakan Yayasan hanya untuk pegawai TIDAK AKTIF.', 'warning'); return; }
+    if (metode === 'KEBIJAKAN YAYASAN' && !confirm('Nominal ' + formatRupiah(jumlah) + ' akan DITANGGUNG YAYASAN (Kebijakan Yayasan). Lanjutkan?')) return; 
     if (jumlah > c.sisa_kewajiban) { if (!confirm('Nominal melebihi sisa kewajiban (' + formatRupiah(c.sisa_kewajiban) + '). Sisa akan dianggap lebih bayar. Lanjutkan?')) return; } 
     
     showLoading(true);
