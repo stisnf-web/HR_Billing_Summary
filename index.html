@@ -246,14 +246,20 @@
             </div>
             <div class="alert alert-success py-2 small mb-3"><i class="fa-solid fa-shield me-1"></i> <strong>Sistem Otomatis:</strong> Import Excel plafon akan otomatis dihubungkan per Tahun Ajaran. Pengurangan plafon otomatis dihitung dari Database Rujukan (Cover Yayasan) sesuai TA masing-masing. Jika plafon habis, sistem akan otomatis mengambil dari plafon pasangan (Suami/Istri).</div>
             <div class="row g-2 mb-3">
-                <div class="col-md-5"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
-                <div class="col-md-4">
+                <div class="col-md-4"><input type="text" id="searchPlafon" class="form-control form-control-sm" placeholder="Cari nama pegawai atau bidang..." onkeyup="currentPagePlafon=1; renderPlafonTable();"></div>
+                <div class="col-md-3">
                     <select id="filterPlafonSpouse" class="form-select form-select-sm" onchange="currentPagePlafon=1; renderPlafonTable();">
                         <option value="SEMUA">Semua Pegawai</option>
                         <option value="PUNYA_PASANGAN">Punya Pasangan Saja</option>
                         <option value="DIPAKAI_PASANGAN">Dipakai Pasangan Saja</option>
                         <option value="TERCOVER_PASANGAN">Tercover Pasangan Saja</option>
                     </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-center">
+                    <div class="form-check small mb-0" title="Tampilkan juga pegawai yang belum/tidak punya data plafon">
+                        <input class="form-check-input" type="checkbox" id="showPlafonKosong" onchange="currentPagePlafon=1; renderPlafonTable();">
+                        <label class="form-check-label" for="showPlafonKosong">Termasuk belum ada plafon</label>
+                    </div>
                 </div>
                 <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="plafonPageSize" class="form-select form-select-sm" onchange="currentPagePlafon=1; renderPlafonTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
             </div>
@@ -1951,10 +1957,11 @@ function renderPlafonTable() {
         if (usageMap[key]) {
             Object.keys(usageMap[key]).forEach(ta => tas.add(ta));
         }
-        if (globalTa !== "SEMUA") tas.add(globalTa);
-        
-        if (tas.size === 0) {
-            tas.add(getLatestTahunAjaran());
+        // [FIX] Pegawai yang plafonnya sudah dihapus tidak lagi dimunculkan sebagai baris "Belum Ditetapkan",
+        // kecuali kotak "Termasuk belum ada plafon" dicentang.
+        if (document.getElementById('showPlafonKosong')?.checked) {
+            if (globalTa !== "SEMUA") tas.add(globalTa);
+            if (tas.size === 0) tas.add(getLatestTahunAjaran());
         }
         
         tas.forEach(ta => {
@@ -2116,16 +2123,43 @@ async function openModalPlafon() {
     await savePlafonRow(cleanNama, bidangInput, ta, nominal, true);
 }
 
-// Simpan plafon (nama + bidang + TA). oldBidangRaw diisi saat mengubah bidang: semua baris plafon
-// pegawai tersebut dipindah ke bidang baru.
-async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, oldBidangRaw) {
+// Filter bidang: kosong/NULL dianggap sama (baris lama bisa bernilai NULL).
+function filterBidangDb(q, bidang) {
+    return bidang ? q.ilike('bidang', likeEsc(bidang)) : q.or('bidang.is.null,bidang.eq.');
+}
+
+// Simpan plafon (nama + bidang + TA).
+// old = { nama, bidang } diisi saat EDIT: semua baris plafon pegawai tersebut (semua tahun ajaran)
+// dipindah ke nama/bidang baru. syncOther = true -> nama yang sama di Data Master, Database Rujukan
+// dan Cicilan ikut diperbaiki.
+async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, old, syncOther) {
     showLoading(true);
     try {
         const n = normalizeName(pegawaiNama);
         const b = resolveStoredBidang(n, bidang, ta);
-        if (oldBidangRaw !== undefined && normalizeName(oldBidangRaw) !== b) {
-            const { error: e1 } = await db.from('plafon_kesehatan').update({ bidang: b }).eq('pegawai_nama', n).eq('bidang', normalizeName(oldBidangRaw));
-            if (e1) throw e1;
+        if (old) {
+            const oN = normalizeName(old.nama), oB = normalizeName(old.bidang);
+            if (oN !== n || oB !== b) {
+                let q = db.from('plafon_kesehatan').update({ pegawai_nama: n, bidang: b }).ilike('pegawai_nama', likeEsc(oN));
+                q = filterBidangDb(q, oB);
+                const { error: e1 } = await q;
+                if (e1) throw e1;
+            }
+            if (syncOther && oN !== n) {
+                const wasDup = dupNames.has(oN);
+                let q1 = db.from('master_pegawai').update({ nama: n }).ilike('nama', likeEsc(oN));
+                if (wasDup && oB) q1 = q1.ilike('bidang', likeEsc(oB));
+                const { error: e2 } = await q1;
+                if (e2) throw e2;
+                let q2 = db.from('database_rujukan').update({ pegawai: n }).ilike('pegawai', likeEsc(oN));
+                if (wasDup && oB) q2 = q2.ilike('bidang', likeEsc(oB));
+                const { error: e3 } = await q2;
+                if (e3) throw e3;
+                if (!wasDup) {
+                    const { error: e4 } = await db.from('cicilan').update({ pegawai: n }).ilike('pegawai', likeEsc(oN));
+                    if (e4) throw e4;
+                }
+            }
         }
         const { error } = await db.from('plafon_kesehatan').upsert(
             { pegawai_nama: n, bidang: b, tahun_ajaran: ta, total_plafon: nominal },
@@ -2144,7 +2178,8 @@ async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, oldBida
         showToast(`Plafon ${n}${b ? ' (' + b + ')' : ''} TA ${ta}: ${formatRupiah(nominal)} - Tersimpan ke Cloud!`);
     } catch (err) {
         let msg = err.message || String(err);
-        if (/bidang|constraint|conflict/i.test(msg)) msg += ' -- Pastikan SQL migrasi kolom "bidang" pada tabel plafon_kesehatan sudah dijalankan di Supabase.';
+        if (/duplicate|unique/i.test(msg)) msg = 'Nama + bidang tersebut sudah memiliki data plafon pada tahun ajaran yang sama. Hapus data yang salah/ganda terlebih dahulu. (' + msg + ')';
+        else if (/bidang|constraint|conflict/i.test(msg)) msg += ' -- Pastikan SQL migrasi kolom "bidang" pada tabel plafon_kesehatan sudah dijalankan di Supabase.';
         showToast('Error: ' + msg, 'danger');
     }
     showLoading(false);
@@ -2155,31 +2190,61 @@ async function editPlafonPegawai(key, ta) {
     const { nama, bidang: keyBid } = parseKey(key);
     const isDup = dupNames.has(nama);
     const rows = plafonRaw.filter(r => r.nama === nama && (!isDup || r.bidang === keyBid));
-    const oldRaw = rows.length ? rows[0].bidang : undefined;
-    const curBidang = isDup ? keyBid : (oldRaw || getBidangByPegawai(nama));
+    const oldRawBidang = rows.length ? rows[0].bidang : '';
+    const curBidang = isDup ? keyBid : (oldRawBidang || getBidangByPegawai(nama));
 
-    let bidangInput = prompt(`Ubah BIDANG untuk "${nama}":\n(Bidang membedakan pegawai dengan nama sama persis. Perubahan berlaku untuk semua tahun ajaran pegawai ini.)`, curBidang);
+    // [BARU] Nama bisa diedit (perbaiki typo). Sengaja TIDAK memakai cleanPegawaiName agar
+    // nama yang diketik tidak "dikoreksi otomatis" ke pegawai lain.
+    let namaInput = prompt(`Ubah NAMA pegawai (untuk memperbaiki typo):\n(Perubahan berlaku untuk semua tahun ajaran pegawai ini.)`, nama);
+    if (namaInput === null) return;
+    const newNama = normalizeName(namaInput);
+    if (!newNama) { showToast('Nama pegawai tidak boleh kosong.', 'warning'); return; }
+
+    let bidangInput = prompt(`Ubah BIDANG untuk "${newNama}":\n(Bidang membedakan pegawai dengan nama sama persis. Perubahan berlaku untuk semua tahun ajaran pegawai ini.)`, curBidang);
     if (bidangInput === null) return;
 
     let currentVal = (dataPlafon[key] && dataPlafon[key][ta]) ? dataPlafon[key][ta] : 0; 
-    let nominalRaw = prompt(`Ubah Plafon untuk "${keyLabel(key)}" TA ${ta} (Rp):`, currentVal); 
+    let nominalRaw = prompt(`Ubah Plafon untuk "${newNama}" TA ${ta} (Rp):`, currentVal); 
     if (nominalRaw === null) return;
     let nominal = parseNominal(nominalRaw);
     if (isNaN(nominal)) { showToast('Nominal tidak valid.', 'warning'); return; }
-    await savePlafonRow(nama, bidangInput, ta, nominal, false, oldRaw);
+
+    let syncOther = false;
+    if (newNama !== nama) {
+        syncOther = confirm(`Nama diubah dari "${nama}" menjadi "${newNama}".\n\nSamakan juga nama tersebut di Data Master Pegawai, Database Rujukan & Cicilan?\n\nOK = ya, ubah di semua data (disarankan jika "${nama}" memang salah ketik)\nBatal = hanya ubah di data plafon`);
+    }
+    await savePlafonRow(newNama, bidangInput, ta, nominal, false, { nama, bidang: oldRawBidang }, syncOther);
 }
+
 async function deletePlafonPegawai(key, ta) {
     key = toKey(key);
     const { nama, bidang } = parseKey(key);
+    const isDup = dupNames.has(nama);
     let info = getPlafonInfo(key, ta);
-    if (info.terpakai > 0) { if(!confirm(`PERHATIAN: Pegawai ini sudah memiliki riwayat pemakaian plafon sebesar ${formatRupiah(info.terpakai)} di TA ${ta}. Jika plafon dihapus, pegawai ini tidak akan memiliki batas plafon (0) untuk TA tersebut. Lanjutkan?`)) return; }
-    else { if(!confirm(`Yakin ingin menghapus plafon untuk "${keyLabel(key)}" TA ${ta}?`)) return; }
+    const otherTas = Object.keys(dataPlafon[key] || {}).filter(t => t !== ta).sort();
+
+    let msg = `Yakin ingin MENGHAPUS data plafon "${keyLabel(key)}" TA ${ta} dari cloud?`;
+    if (info.terpakai > 0) {
+        msg = `PERHATIAN: pegawai ini punya riwayat pemakaian plafon ${formatRupiah(info.terpakai)} di TA ${ta}. Data rujukan/invoice TIDAK ikut terhapus, sehingga baris ini tetap tampil (tanpa batas plafon) selama masih ada data rujukannya.\n\n` + msg;
+    }
+    if (!confirm(msg)) return;
+
+    let allTa = false;
+    if (otherTas.length) {
+        allTa = confirm(`"${keyLabel(key)}" juga punya plafon di TA: ${otherTas.join(', ')}.\n\nOK = hapus SEMUA tahun ajaran sekaligus (pegawai hilang dari daftar plafon)\nBatal = hapus TA ${ta} saja`);
+    }
+
     showLoading(true);
-    let q = db.from('plafon_kesehatan').delete().ilike('pegawai_nama', likeEsc(nama)).eq('tahun_ajaran', ta);
-    if (dupNames.has(nama)) q = bidang ? q.ilike('bidang', likeEsc(bidang)) : q.eq('bidang', '');
-    const { error } = await q;
+    let q = db.from('plafon_kesehatan').delete().ilike('pegawai_nama', likeEsc(nama));
+    if (!allTa) q = q.eq('tahun_ajaran', ta);
+    if (isDup) q = filterBidangDb(q, bidang);
+    const { data, error } = await q.select('pegawai_nama');
     if (error) showToast('Error: ' + error.message, 'danger');
-    else { await loadInitialData(); showToast(`Plafon untuk ${keyLabel(key)} TA ${ta} berhasil dihapus dari cloud.`); }
+    else {
+        await loadInitialData();
+        const jml = Array.isArray(data) ? data.length : null;
+        showToast(`Plafon ${keyLabel(key)} ${allTa ? '(semua TA)' : 'TA ' + ta} berhasil dihapus dari cloud${jml !== null ? ' (' + jml + ' baris)' : ''}.`);
+    }
     showLoading(false);
 }
 function downloadTemplatePlafon() { 
