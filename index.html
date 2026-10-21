@@ -46,9 +46,52 @@
         .plafon-breakdown-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; background: #f8f9fa; margin-top: 8px; }
         .plafon-breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
         .plafon-breakdown-row.total { border-top: 2px solid #dee2e6; margin-top: 4px; padding-top: 8px; font-weight: bold; font-size: 15px; }
+        /* ===== KONTROL AKSES: Pimpinan (view only) ===== */
+        body.role-view .needs-write { display: none !important; }
+        #loginScreen { position: fixed; inset: 0; z-index: 3000; background: linear-gradient(135deg, #0f5132 0%, #146c43 55%, #198754 100%); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+        .login-card { border: none; border-radius: 16px; box-shadow: 0 18px 45px rgba(0,0,0,0.35); }
+        .role-icon { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; color: white; }
     </style>
 </head>
 <body>
+
+<!-- ===== LAYAR LOGIN / PILIH HAK AKSES ===== -->
+<div id="loginScreen">
+    <div style="width:100%; max-width:880px;">
+        <div class="text-center text-white mb-4">
+            <i class="fa-solid fa-hospital-user fa-3x text-warning mb-3"></i>
+            <h3 class="fw-bold mb-1">Sistem Rekap Invoice &amp; Plafon Kesehatan</h3>
+            <p class="text-white-50 mb-0">RS Edelweiss — NFBS Lembang (Cloud Sync)</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card login-card h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="role-icon bg-success mb-3"><i class="fa-solid fa-user-gear"></i></div>
+                        <h5 class="fw-bold mb-1">Pengelola</h5>
+                        <p class="text-muted small mb-3">Akses penuh: tambah, edit, hapus data pegawai, rujukan, plafon, cicilan &amp; potongan.</p>
+                        <input type="password" id="loginPin" class="form-control text-center mb-2" placeholder="Masukkan PIN Pengelola" maxlength="8" inputmode="numeric" autocomplete="off" style="letter-spacing:8px;" onkeydown="if(event.key==='Enter')loginPengelola()">
+                        <div id="loginPinError" class="text-danger small mb-2 d-none"><i class="fa-solid fa-circle-exclamation me-1"></i>PIN salah. Silakan coba lagi.</div>
+                        <button class="btn btn-success w-100 fw-bold" onclick="loginPengelola()"><i class="fa-solid fa-right-to-bracket me-1"></i> Masuk sebagai Pengelola</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card login-card h-100">
+                    <div class="card-body p-4 text-center d-flex flex-column">
+                        <div>
+                            <div class="role-icon bg-warning mb-3"><i class="fa-solid fa-user-tie"></i></div>
+                            <h5 class="fw-bold mb-1">Pimpinan</h5>
+                            <p class="text-muted small mb-3">Hanya lihat (view only): monitoring dashboard, rekap, cicilan &amp; export. Tidak dapat mengubah data.</p>
+                        </div>
+                        <button class="btn btn-warning w-100 fw-bold text-dark mt-auto" onclick="loginPimpinan()"><i class="fa-solid fa-eye me-1"></i> Masuk sebagai Pimpinan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-center text-white-50 small mt-3 mb-0"><i class="fa-solid fa-shield-halved me-1"></i> PIN default Pengelola: <code class="text-warning">1234</code> — segera ganti melalui tombol <em>"Ganti PIN"</em> di menu setelah masuk.</p>
+    </div>
+</div>
 
 <div class="mobile-header position-fixed top-0 start-0 w-100 bg-success text-white p-2 d-md-none align-items-center justify-content-between shadow" style="z-index: 1030;">
     <button class="btn btn-sm btn-outline-light" onclick="toggleSidebar()"><i class="fa-solid fa-bars fa-lg"></i></button>
@@ -78,6 +121,12 @@
         <li class="nav-item"><a class="nav-link" data-tab="sdm" onclick="switchTab('sdm')"><i class="fa-solid fa-users me-2"></i> Rekap per SDM</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="simulasi" onclick="switchTab('simulasi')"><i class="fa-solid fa-calculator me-2"></i> Simulasi Invoice</a></li>
     </ul>
+    <div id="roleInfoSidebar" class="d-none mt-3">
+        <hr class="text-white-50">
+        <div class="small mb-2 text-white"><i class="fa-solid fa-user-shield me-2 text-warning"></i>Masuk sebagai: <span id="roleNameSidebar" class="fw-bold">-</span></div>
+        <button id="btnGantiPin" class="btn btn-sm btn-outline-light w-100 mb-2 d-none" onclick="openModalGantiPin()"><i class="fa-solid fa-key me-1"></i> Ganti PIN Pengelola</button>
+        <button class="btn btn-sm btn-outline-warning w-100" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i> Keluar</button>
+    </div>
     <div class="mt-auto pt-5 text-center small text-white-50">
         <p>Sistem Periode:<br>Juli s/d Juni (Tahun Ajaran)<br><span class="text-warning"><i class="fa-solid fa-cloud-arrow-up"></i> Auto-Save & Realtime Sync</span></p>
         <p class="small text-white-50 mb-0" id="lastUpdateText"></p>
@@ -91,11 +140,12 @@
             <p class="text-muted mb-0">Monitoring Biaya Kesehatan & Plafon SDM (Juli - Juni)</p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="roleBadgeTopbar" class="badge bg-success align-self-center d-none"></span>
             <div class="input-group input-group-sm">
                 <span class="input-group-text bg-success text-white fw-bold"><i class="fa-solid fa-calendar-days me-1"></i> TA</span>
                 <select id="filterTahunAjaran" class="form-select fw-bold text-success" onchange="updateAllSystems()"><option value="SEMUA">Semua Tahun Ajaran</option></select>
             </div>
-            <button type="button" class="btn btn-sm btn-warning" onclick="migrateLocalToSupabase()"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Migrasi</button>
+            <button type="button" class="btn btn-sm btn-warning needs-write" onclick="migrateLocalToSupabase()"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Migrasi</button>
             <button type="button" class="btn btn-sm btn-outline-success" onclick="exportFullExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
         </div>
     </div>
@@ -150,9 +200,9 @@
                         <h5 class="fw-bold m-0"><i class="fa-solid fa-users text-success me-2"></i> Data Master Pegawai</h5>
                         <div class="d-flex gap-2 flex-wrap">
                             <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterPegawai()"><i class="fa-solid fa-download me-1"></i> Template</button>
-                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterPegawaiFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <label class="btn btn-outline-success btn-sm mb-0 needs-write" style="cursor: pointer;">Import <input type="file" id="importMasterPegawaiFile" accept=".xlsx, .xls, .csv" hidden></label>
                             <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterPegawaiExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
-                            <button class="btn btn-success btn-sm" onclick="openModalMasterPegawai('add')"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                            <button class="btn btn-success btn-sm needs-write" onclick="openModalMasterPegawai('add')"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
                         </div>
                     </div>
                     <div class="row g-2 mb-3">
@@ -184,9 +234,9 @@
                         <h5 class="fw-bold m-0"><i class="fa-solid fa-layer-group text-success me-2"></i> Data Master Bidang</h5>
                         <div class="d-flex gap-2 flex-wrap">
                             <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterBidang()"><i class="fa-solid fa-download me-1"></i> Template</button>
-                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterBidangFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <label class="btn btn-outline-success btn-sm mb-0 needs-write" style="cursor: pointer;">Import <input type="file" id="importMasterBidangFile" accept=".xlsx, .xls, .csv" hidden></label>
                             <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterBidangExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
-                            <button class="btn btn-success btn-sm" onclick="openModalMasterBidang()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                            <button class="btn btn-success btn-sm needs-write" onclick="openModalMasterBidang()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -200,9 +250,9 @@
                         <h5 class="fw-bold m-0"><i class="fa-solid fa-building text-success me-2"></i> Data Master Departemen</h5>
                         <div class="d-flex gap-2 flex-wrap">
                             <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateMasterDept()"><i class="fa-solid fa-download me-1"></i> Template</button>
-                            <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importMasterDeptFile" accept=".xlsx, .xls, .csv" hidden></label>
+                            <label class="btn btn-outline-success btn-sm mb-0 needs-write" style="cursor: pointer;">Import <input type="file" id="importMasterDeptFile" accept=".xlsx, .xls, .csv" hidden></label>
                             <button class="btn btn-outline-secondary btn-sm" onclick="exportMasterDeptExcel()"><i class="fa-solid fa-file-excel me-1"></i> Export</button>
-                            <button class="btn btn-success btn-sm" onclick="openModalMasterDept()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
+                            <button class="btn btn-success btn-sm needs-write" onclick="openModalMasterDept()"><i class="fa-solid fa-plus me-1"></i> Tambah</button>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -219,8 +269,8 @@
                 <h5 class="fw-bold m-0"><i class="fa-solid fa-database text-success me-2"></i> Database Rujukan & Invoice</h5>
                 <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplateDatabase()"><i class="fa-solid fa-download me-1"></i> Template</button>
-                    <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importDatabaseFile" accept=".xlsx, .xls, .csv" hidden></label>
-                    <button class="btn btn-success btn-sm" onclick="openModalDatabase('add')"><i class="fa-solid fa-plus me-1"></i> Tambah Data</button>
+                    <label class="btn btn-outline-success btn-sm mb-0 needs-write" style="cursor: pointer;">Import <input type="file" id="importDatabaseFile" accept=".xlsx, .xls, .csv" hidden></label>
+                    <button class="btn btn-success btn-sm needs-write" onclick="openModalDatabase('add')"><i class="fa-solid fa-plus me-1"></i> Tambah Data</button>
                 </div>
             </div>
             <div class="alert alert-info py-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> <strong>Info:</strong> Saat data rujukan disimpan, sistem otomatis mengurangi jatah plafon kesehatan pegawai sesuai Tahun Ajaran tanggal rujukan. Data yang sama persis (duplikat) akan otomatis diabaikan.</div>
@@ -240,8 +290,8 @@
                 <h5 class="fw-bold m-0"><i class="fa-solid fa-shield-heart text-success me-2"></i> Plafon Kesehatan Pegawai</h5>
                 <div class="d-flex gap-2">
                     <button class="btn btn-outline-primary btn-sm" onclick="downloadTemplatePlafon()"><i class="fa-solid fa-download me-1"></i> Template</button>
-                    <label class="btn btn-outline-success btn-sm mb-0" style="cursor: pointer;">Import <input type="file" id="importPlafonFile" accept=".xlsx, .xls, .csv" hidden></label>
-                    <button class="btn btn-success btn-sm" onclick="openModalPlafon()"><i class="fa-solid fa-plus me-1"></i> Set Plafon</button>
+                    <label class="btn btn-outline-success btn-sm mb-0 needs-write" style="cursor: pointer;">Import <input type="file" id="importPlafonFile" accept=".xlsx, .xls, .csv" hidden></label>
+                    <button class="btn btn-success btn-sm needs-write" onclick="openModalPlafon()"><i class="fa-solid fa-plus me-1"></i> Set Plafon</button>
                 </div>
             </div>
             <div class="alert alert-success py-2 small mb-3"><i class="fa-solid fa-shield me-1"></i> <strong>Sistem Otomatis:</strong> Import Excel plafon akan otomatis dihubungkan per Tahun Ajaran. Pengurangan plafon otomatis dihitung dari Database Rujukan (Cover Yayasan) sesuai TA masing-masing. Jika plafon sendiri habis dan biayanya dicover yayasan, sisanya ditagihkan ke plafon pasangan (Suami/Istri). Bagian yang tidak dicover yayasan menjadi hutang pegawai, tidak otomatis ditagih ke pasangan.</div>
@@ -287,7 +337,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h5 class="fw-bold m-0"><i class="fa-solid fa-hand-holding-dollar text-success me-2"></i> Manajemen Cicilan & Potongan Pegawai</h5>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-success btn-sm" onclick="openModalCicilan()"><i class="fa-solid fa-plus me-1"></i> Buat Kesepakatan Cicilan</button>
+                    <button class="btn btn-success btn-sm needs-write" onclick="openModalCicilan()"><i class="fa-solid fa-plus me-1"></i> Buat Kesepakatan Cicilan</button>
                 </div>
             </div>
             <div id="alertHutangNonaktif"></div>
@@ -421,7 +471,7 @@
                             <span class="fw-bold small text-primary" id="breakdownSisaSpousePlafon">Rp 0</span>
                         </div>
                     </div>
-                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan</button></div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success needs-write"><i class="fa-solid fa-save me-1"></i> Simpan</button></div>
                 </form>
             </div>
         </div>
@@ -459,7 +509,7 @@
                         <div class="col-md-6"><label class="form-label fw-bold">Status Kepegawaian</label><select id="mpStatus" class="form-select" onchange="toggleTanggalNonaktif()"><option value="AKTIF">Aktif</option><option value="TIDAK AKTIF">Tidak Aktif</option></select></div>
                         <div class="col-md-6" id="divTanggalNonaktif" style="display: none;"><label class="form-label fw-bold">Tanggal Non-Aktif</label><input type="date" id="mpTanggalNonaktif" class="form-control"><small class="text-muted">Digunakan untuk menghentikan plafon otomatis di tahun ajaran berikutnya.</small></div>
                     </div>
-                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success">Simpan</button></div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success needs-write">Simpan</button></div>
                 </form>
             </div>
         </div>
@@ -470,9 +520,10 @@
 <div class="modal fade" id="modalCicilan" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white"><h5 class="modal-title">Buat Kesepakatan Cicilan Pegawai</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalCicilanTitle">Buat Kesepakatan Cicilan Pegawai</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <form id="formCicilan" onsubmit="saveCicilan(event)">
+                    <input type="hidden" id="cicEditId">
                     <div class="row g-3">
                         <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="cicPegawai" class="form-select" required onchange="updateKewajibanOtomatis()"></select></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Tanggal Mulai / Kesepakatan</label><input type="date" id="cicTanggal" class="form-control" required></div>
@@ -482,7 +533,7 @@
                         <div class="col-md-6"><label class="form-label fw-bold">Metode Pembayaran</label><select id="cicMetode" class="form-select"><option value="POTONG PAYROLL">Potong Payroll Otomatis</option><option value="CASH">Bayar Cash / Transfer Manual</option></select></div>
                         <div class="col-md-12"><label class="form-label fw-bold">Keterangan / Peruntukan</label><input type="text" id="cicKeterangan" class="form-control" placeholder="Misal: Hutang kelebihan plafon, pinjaman kesehatan, dll"></div>
                     </div>
-                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan Kesepakatan</button></div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success needs-write" id="btnCicilanSubmit"><i class="fa-solid fa-save me-1"></i> Simpan Kesepakatan</button></div>
                 </form>
             </div>
         </div>
@@ -497,13 +548,17 @@
             <div class="modal-body">
                 <div class="row mb-3" id="cicilanDetailInfo"></div>
                 <hr>
-                <h6 class="fw-bold text-success mb-3"><i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran / Potongan Baru</h6>
-                <form class="row g-2 mb-4" onsubmit="bayarCicilan(event)">
+                <h6 class="fw-bold text-success mb-3 needs-write" id="bayarFormTitle"><i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran / Potongan Baru</h6>
+                <form class="row g-2 mb-4 needs-write" onsubmit="bayarCicilan(event)">
                     <input type="hidden" id="bayarCicilanId">
-                    <div class="col-md-4"><input type="date" id="bayarTanggal" class="form-control form-control-sm" required></div>
+                    <input type="hidden" id="bayarEditId">
+                    <div class="col-md-3"><input type="date" id="bayarTanggal" class="form-control form-control-sm" required></div>
                     <div class="col-md-4"><input type="number" id="bayarJumlah" class="form-control form-control-sm" placeholder="Nominal fleksibel (Rp)" required></div>
                     <div class="col-md-3"><select id="bayarMetode" class="form-select form-select-sm"><option value="POTONG PAYROLL">Potong Payroll</option><option value="CASH">Cash / Transfer</option></select></div>
-                    <div class="col-md-1 d-grid"><button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-check"></i></button></div>
+                    <div class="col-md-2 d-flex gap-1">
+                        <button type="submit" class="btn btn-success btn-sm flex-fill" id="btnBayarSubmit" title="Catat Pembayaran"><i class="fa-solid fa-check"></i></button>
+                        <button type="button" class="btn btn-secondary btn-sm flex-fill" id="btnBayarCancelEdit" style="display:none;" onclick="resetBayarForm()" title="Batal Edit"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </form>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover small"><thead class="table-success"><tr><th>No</th><th>Tanggal</th><th>Nominal</th><th>Metode</th><th class="text-center">Aksi</th></tr></thead><tbody id="cicilanRiwayatTableBody"></tbody></table>
@@ -560,7 +615,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-success" id="btnConfirmImport"><i class="fa-solid fa-check me-1"></i> Konfirmasi Import</button>
+                <button type="button" class="btn btn-success needs-write" id="btnConfirmImport"><i class="fa-solid fa-check me-1"></i> Konfirmasi Import</button>
             </div>
         </div>
     </div>
@@ -571,6 +626,23 @@
     <div class="modal-dialog modal-dialog-centered justify-content-center">
         <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
             <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL GANTI PIN PENGELOLA -->
+<div class="modal fade" id="modalGantiPin" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="fa-solid fa-key me-2"></i>Ganti PIN Pengelola</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form onsubmit="submitGantiPin(event)">
+                    <div class="mb-3"><label class="form-label fw-bold">PIN Lama</label><input type="password" id="pinLama" class="form-control" maxlength="8" inputmode="numeric" autocomplete="off" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">PIN Baru (4-8 digit angka)</label><input type="password" id="pinBaru" class="form-control" maxlength="8" inputmode="numeric" autocomplete="off" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Konfirmasi PIN Baru</label><input type="password" id="pinBaru2" class="form-control" maxlength="8" inputmode="numeric" autocomplete="off" required></div>
+                    <div class="text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-save me-1"></i> Simpan PIN</button></div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -600,6 +672,129 @@ let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, cur
 let pendingImportData = null;
 let supabaseChannels = [];
 let mpSpouseFilteredData = [];
+
+// ===== KONTROL AKSES: PENGELOLA (AKSES PENUH) & PIMPINAN (HANYA LIHAT) =====
+const PIN_KEY = 'edel_pin_pengelola';
+const ROLE_KEY = 'edel_role_session';
+let currentRole = null; // 'pengelola' | 'pimpinan' | null
+
+function getStoredPin() { try { return localStorage.getItem(PIN_KEY) || '1234'; } catch (e) { return '1234'; } }
+function setStoredPin(pin) { try { localStorage.setItem(PIN_KEY, pin); } catch (e) {} }
+
+function isPengelola() { return currentRole === 'pengelola'; }
+
+// Guard untuk semua operasi tulis (tambah/edit/hapus/import/migrasi).
+// Pimpinan hanya boleh melihat data.
+function canWrite(actionLabel) {
+    if (isPengelola()) return true;
+    showToast('Akses ditolak: mode <b>Pimpinan</b> hanya dapat melihat data' + (actionLabel ? ' (' + actionLabel + ')' : '') + '.', 'warning');
+    return false;
+}
+
+function loginPengelola() {
+    const input = document.getElementById('loginPin');
+    const err = document.getElementById('loginPinError');
+    const pin = (input?.value || '').trim();
+    if (!pin || pin !== getStoredPin()) {
+        if (err) err.classList.remove('d-none');
+        if (input) { input.focus(); input.select(); }
+        return;
+    }
+    if (err) err.classList.add('d-none');
+    if (input) input.value = '';
+    applyLogin('pengelola');
+}
+
+function loginPimpinan() { applyLogin('pimpinan'); }
+
+function applyLogin(role) {
+    currentRole = role;
+    try { sessionStorage.setItem(ROLE_KEY, role); } catch (e) {}
+    const ls = document.getElementById('loginScreen');
+    if (ls) ls.style.display = 'none';
+    applyRoleUI();
+    showToast(role === 'pengelola'
+        ? 'Berhasil masuk sebagai <b>Pengelola</b> (akses penuh).'
+        : 'Berhasil masuk sebagai <b>Pimpinan</b> (mode hanya lihat).', role === 'pengelola' ? 'success' : 'warning');
+}
+
+function logout() {
+    if (!confirm('Keluar dari sistem?')) return;
+    currentRole = null;
+    try { sessionStorage.removeItem(ROLE_KEY); } catch (e) {}
+    document.querySelectorAll('.modal.show').forEach(m => { try { bootstrap.Modal.getOrCreateInstance(m).hide(); } catch (e) {} });
+    const ls = document.getElementById('loginScreen');
+    if (ls) ls.style.display = 'flex';
+    const pinInput = document.getElementById('loginPin');
+    if (pinInput) pinInput.value = '';
+    const pinErr = document.getElementById('loginPinError');
+    if (pinErr) pinErr.classList.add('d-none');
+    applyRoleUI();
+}
+
+const ROLE_LABELS = { pengelola: 'Pengelola (Akses Penuh)', pimpinan: 'Pimpinan (Hanya Lihat)' };
+
+function applyRoleUI() {
+    const isView = currentRole === 'pimpinan';
+    document.body.classList.toggle('role-view', isView);
+    // Sidebar: info role + tombol keluar / ganti pin
+    const box = document.getElementById('roleInfoSidebar');
+    if (box) {
+        if (currentRole) {
+            box.classList.remove('d-none');
+            const nameEl = document.getElementById('roleNameSidebar');
+            if (nameEl) nameEl.textContent = ROLE_LABELS[currentRole] || currentRole;
+            const btnPin = document.getElementById('btnGantiPin');
+            if (btnPin) btnPin.classList.toggle('d-none', !isPengelola());
+        } else {
+            box.classList.add('d-none');
+        }
+    }
+    // Topbar: badge role
+    const badge = document.getElementById('roleBadgeTopbar');
+    if (badge) {
+        if (currentRole) {
+            badge.className = 'badge align-self-center ' + (isView ? 'bg-warning text-dark' : 'bg-success');
+            badge.innerHTML = isView ? '<i class="fa-solid fa-eye me-1"></i> Pimpinan — View Only' : '<i class="fa-solid fa-user-gear me-1"></i> Pengelola';
+        } else {
+            badge.classList.add('d-none');
+        }
+    }
+}
+
+function openModalGantiPin() {
+    if (!isPengelola()) { showToast('Hanya Pengelola yang dapat mengganti PIN.', 'warning'); return; }
+    ['pinLama', 'pinBaru', 'pinBaru2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGantiPin')).show();
+}
+
+function submitGantiPin(event) {
+    event.preventDefault();
+    if (!canWrite('ganti PIN')) return;
+    const lama = (document.getElementById('pinLama').value || '').trim();
+    const baru = (document.getElementById('pinBaru').value || '').trim();
+    const baru2 = (document.getElementById('pinBaru2').value || '').trim();
+    if (lama !== getStoredPin()) { showToast('PIN lama salah.', 'danger'); return; }
+    if (!/^[0-9]{4,8}$/.test(baru)) { showToast('PIN baru harus 4-8 digit angka.', 'warning'); return; }
+    if (baru !== baru2) { showToast('Konfirmasi PIN baru tidak sama.', 'warning'); return; }
+    if (baru === lama) { showToast('PIN baru sama dengan PIN lama.', 'warning'); return; }
+    setStoredPin(baru);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGantiPin')).hide();
+    showToast('PIN Pengelola berhasil diganti. Gunakan PIN baru pada login berikutnya.');
+}
+
+// Pulihkan sesi role saat halaman di-refresh (masih dalam tab yang sama)
+function restoreRoleSession() {
+    try {
+        const saved = sessionStorage.getItem(ROLE_KEY);
+        if (saved === 'pengelola' || saved === 'pimpinan') {
+            currentRole = saved;
+            const ls = document.getElementById('loginScreen');
+            if (ls) ls.style.display = 'none';
+        }
+    } catch (e) {}
+    applyRoleUI();
+}
 
 // ===== UTILITY FUNCTIONS =====
 function normalizeName(name) {
@@ -1109,7 +1304,7 @@ function renderMasterPegawaiTable() {
         let rowNumber = startIndex + index + 1;
         let spouseInfo = p.spouse_nip ? dataMasterPegawai.find(x => x.nip === p.spouse_nip) : null;
         let spouseName = spouseInfo ? spouseInfo.nama : '-';
-        html += `<tr><td>${rowNumber}</td><td><code>${escapeHtml(p.nip)}</code></td><td class="fw-bold">${escapeHtml(p.nama)}</td><td><span class="badge bg-secondary">${escapeHtml(p.bidang || '-')}</span></td><td>${escapeHtml(p.departemen || '-')}</td><td>${escapeHtml(spouseName)}</td><td><span class="badge ${p.status === 'AKTIF' ? 'bg-success' : 'bg-danger'}">${escapeHtml(p.status)}</span></td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning" onclick="openModalMasterPegawai('edit','${p.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterPegawai('${p.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        html += `<tr><td>${rowNumber}</td><td><code>${escapeHtml(p.nip)}</code></td><td class="fw-bold">${escapeHtml(p.nama)}</td><td><span class="badge bg-secondary">${escapeHtml(p.bidang || '-')}</span></td><td>${escapeHtml(p.departemen || '-')}</td><td>${escapeHtml(spouseName)}</td><td><span class="badge ${p.status === 'AKTIF' ? 'bg-success' : 'bg-danger'}">${escapeHtml(p.status)}</span></td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="openModalMasterPegawai('edit','${p.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteMasterPegawai('${p.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
     document.getElementById('masterPegawaiTableBody').innerHTML = html || `<tr><td colspan="8" class="text-center text-muted">Tidak ada data</td></tr>`;
     let endRecord = Math.min(startIndex + pageSize, totalRows);
@@ -1120,13 +1315,14 @@ function renderMasterPegawaiTable() {
     document.getElementById('masterPegawaiPaginationNav').innerHTML = navHtml;
 }
 function changeMasterPegawaiPage(page) { currentPageMasterPegawai = page; renderMasterPegawaiTable(); }
-function renderMasterBidangTable() { let html = ''; dataMasterBidang.forEach((b, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${escapeHtml(b.nama_bidang)}</td><td class="text-center"><button class="btn btn-sm btn-warning" onclick="editMasterBidang('${b.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterBidang('${b.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterBidangTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
-function renderMasterDeptTable() { let html = ''; dataMasterDept.forEach((d, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${escapeHtml(d.nama_departemen)}</td><td class="text-center"><button class="btn btn-sm btn-warning" onclick="editMasterDept('${d.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteMasterDept('${d.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterDeptTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
+function renderMasterBidangTable() { let html = ''; dataMasterBidang.forEach((b, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${escapeHtml(b.nama_bidang)}</td><td class="text-center"><button class="btn btn-sm btn-warning needs-write" onclick="editMasterBidang('${b.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteMasterBidang('${b.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterBidangTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
+function renderMasterDeptTable() { let html = ''; dataMasterDept.forEach((d, idx) => { html += `<tr><td>${idx + 1}</td><td class="fw-bold">${escapeHtml(d.nama_departemen)}</td><td class="text-center"><button class="btn btn-sm btn-warning needs-write" onclick="editMasterDept('${d.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteMasterDept('${d.id}')" title="Hapus"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('masterDeptTableBody').innerHTML = html || `<tr><td colspan="3" class="text-center text-muted">Belum ada data</td></tr>`; }
 
 function downloadTemplateMasterPegawai() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NIP: "EMP001", NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", DEPARTEMEN: "YAYASAN", STATUS: "AKTIF"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Pegawai"); XLSX.writeFile(wb, "Template_Import_Pegawai.xlsx"); showToast('Template berhasil diunduh!'); }
 function exportMasterPegawaiExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterPegawai.map(p => ({NIP: p.nip, NAMA_PEGAWAI: p.nama, BIDANG: p.bidang, DEPARTEMEN: p.departemen, STATUS: p.status}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Pegawai"); XLSX.writeFile(wb, "Data_Master_Pegawai.xlsx"); }
 
 async function importMasterPegawaiExcel(event) {
+    if (!canWrite('import master pegawai')) return;
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -1149,6 +1345,7 @@ async function importMasterPegawaiExcel(event) {
 function downloadTemplateMasterBidang() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_BIDANG: "CONTOH BIDANG"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Bidang"); XLSX.writeFile(wb, "Template_Import_Bidang.xlsx"); showToast('Template berhasil diunduh!'); }
 function exportMasterBidangExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterBidang.map(b => ({NAMA_BIDANG: b.nama_bidang}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Bidang"); XLSX.writeFile(wb, "Data_Master_Bidang.xlsx"); }
 async function importMasterBidangExcel(event) {
+    if (!canWrite('import master bidang')) return;
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -1166,6 +1363,7 @@ async function importMasterBidangExcel(event) {
 function downloadTemplateMasterDept() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_DEPARTEMEN: "CONTOH DEPARTEMEN"}]); XLSX.utils.book_append_sheet(wb, ws, "Template Departemen"); XLSX.writeFile(wb, "Template_Import_Departemen.xlsx"); showToast('Template berhasil diunduh!'); }
 function exportMasterDeptExcel() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataMasterDept.map(d => ({NAMA_DEPARTEMEN: d.nama_departemen}))); XLSX.utils.book_append_sheet(wb, ws, "Daftar Departemen"); XLSX.writeFile(wb, "Data_Master_Departemen.xlsx"); }
 async function importMasterDeptExcel(event) {
+    if (!canWrite('import master departemen')) return;
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -1212,6 +1410,7 @@ function deduplicateData(arr, keys) {
 }
 
 async function confirmImport() {
+    if (!canWrite('konfirmasi import')) return;
     if (!pendingImportData) { showToast('Tidak ada data untuk diimpor', 'warning'); return; }
     hideModal('modalPreviewImport');
     showLoading(true);
@@ -1387,6 +1586,7 @@ document.addEventListener('click', function(e) {
 });
 
 function openModalMasterPegawai(mode, id = null) {
+    if (!canWrite('tambah/edit pegawai')) return;
     let bidangOpt = ''; dataMasterBidang.forEach(b => bidangOpt += `<option value="${b.nama_bidang.trim()}">${b.nama_bidang.trim()}</option>`); document.getElementById('mpBidang').innerHTML = bidangOpt;
     let deptOpt = ''; dataMasterDept.forEach(d => deptOpt += `<option value="${d.nama_departemen.trim()}">${d.nama_departemen.trim()}</option>`); document.getElementById('mpDept').innerHTML = deptOpt;
     
@@ -1443,6 +1643,7 @@ function openModalMasterPegawai(mode, id = null) {
 //    saat spouse berubah
 // 3. Tidak handle case: insert baru dengan spouse
 async function saveMasterPegawai(event) {
+    if (!canWrite('simpan pegawai')) return;
     event.preventDefault();
     let origNip = document.getElementById('mpOriginalNip').value;
     let nip = document.getElementById('mpNip').value.trim().toUpperCase();
@@ -1502,6 +1703,7 @@ async function saveMasterPegawai(event) {
 }
 
 async function deleteMasterPegawai(id) {
+    if (!canWrite('hapus pegawai')) return;
     let p = dataMasterPegawai.find(x => x.id === id);
     if (!p) return;
     if (confirm(`Yakin ingin menghapus pegawai NIP ${p.nip}?`)) {
@@ -1518,6 +1720,7 @@ async function deleteMasterPegawai(id) {
     }
 }
 async function openModalMasterBidang() {
+    if (!canWrite('tambah bidang')) return;
     let nama = prompt("Masukkan Nama Bidang Baru:");
     if (nama) {
         let fn = nama.trim().toUpperCase();
@@ -1531,6 +1734,7 @@ async function openModalMasterBidang() {
     }
 }
 async function editMasterBidang(id) {
+    if (!canWrite('edit bidang')) return;
     let b = dataMasterBidang.find(x => x.id === id);
     if (!b) return;
     let nb = prompt(`Ubah Bidang "${b.nama_bidang}" menjadi:`, b.nama_bidang);
@@ -1549,6 +1753,7 @@ async function editMasterBidang(id) {
     }
 }
 async function deleteMasterBidang(id) {
+    if (!canWrite('hapus bidang')) return;
     let b = dataMasterBidang.find(x => x.id === id);
     if (!b) return;
     if (confirm(`Yakin hapus bidang "${b.nama_bidang}"?`)) {
@@ -1560,6 +1765,7 @@ async function deleteMasterBidang(id) {
     }
 }
 async function openModalMasterDept() {
+    if (!canWrite('tambah departemen')) return;
     let nama = prompt("Masukkan Nama Departemen Baru:");
     if (nama) {
         let fn = nama.trim().toUpperCase();
@@ -1573,6 +1779,7 @@ async function openModalMasterDept() {
     }
 }
 async function editMasterDept(id) {
+    if (!canWrite('edit departemen')) return;
     let d = dataMasterDept.find(x => x.id === id);
     if (!d) return;
     let nb = prompt(`Ubah Departemen "${d.nama_departemen}" menjadi:`, d.nama_departemen);
@@ -1590,6 +1797,7 @@ async function editMasterDept(id) {
     }
 }
 async function deleteMasterDept(id) {
+    if (!canWrite('hapus departemen')) return;
     let d = dataMasterDept.find(x => x.id === id);
     if (!d) return;
     if (confirm(`Yakin hapus departemen "${d.nama_departemen}"?`)) {
@@ -1610,12 +1818,13 @@ function renderDatabaseTable(data) {
         let badgeKet = cover > 0 && pribadi > 0 ? `<span class="badge bg-success">Y: ${formatRupiah(cover)}</span> <span class="badge bg-warning text-dark">P: ${formatRupiah(pribadi)}</span>` : cover > 0 ? `<span class="badge bg-success">${formatRupiah(cover)}</span>` : `<span class="badge bg-warning text-dark">${formatRupiah(pribadi)}</span>`;
         let formattedDate = parseExcelDate(item.tanggal);
         let ta = getTahunAjaran(formattedDate);
-        html += `<tr><td>${index + 1}</td><td class="fw-bold">${escapeHtml(item.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(item.bidang || '-')}</span></td><td>${escapeHtml(item.pasien)}</td><td>${escapeHtml(item.poli)}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${escapeHtml(item.no_invoice)}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseById('${item.id}')" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning" onclick="openModalDatabase('edit', '${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteDatabaseById('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        html += `<tr><td>${index + 1}</td><td class="fw-bold">${escapeHtml(item.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(item.bidang || '-')}</span></td><td>${escapeHtml(item.pasien)}</td><td>${escapeHtml(item.poli)}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${escapeHtml(item.no_invoice)}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseById('${item.id}')" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalDatabase('edit', '${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteDatabaseById('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
     document.getElementById('dbTableBody').innerHTML = html || `<tr><td colspan="13" class="text-center text-muted">Belum ada data rujukan</td></tr>`;
 }
 
 function openModalDatabase(mode, id = null) {
+    if (!canWrite('tambah/edit data rujukan')) return;
     let dbPegawaiInput = document.getElementById('dbPegawai');
     let masterPegawaiList = document.getElementById('masterPegawaiList');
     
@@ -1792,6 +2001,7 @@ function calcSubTotalManual() { let tagihan = parseFloat(document.getElementById
 function calcBiayaPribadi() { let subtotal = parseFloat(document.getElementById('dbSubtotal').value) || 0; let cover = parseFloat(document.getElementById('dbCover').value) || 0; if (cover > subtotal) cover = subtotal; if (cover < 0) cover = 0; let pribadi = subtotal - cover; document.getElementById('dbCover').value = cover; document.getElementById('dbPribadi').value = pribadi; checkPlafonAvailability(); }
 
 async function saveDatabase(event) {
+    if (!canWrite('simpan data rujukan')) return;
     event.preventDefault();
     let id = document.getElementById('dbId').value;
     let pegawai = document.getElementById('dbPegawai').value.trim();
@@ -1851,6 +2061,7 @@ async function saveDatabase(event) {
 }
 
 async function deleteDatabaseById(id) {
+    if (!canWrite('hapus data rujukan')) return;
     if (confirm('Yakin ingin menghapus data rujukan ini? Plafon akan dihitung ulang otomatis.')) {
         showLoading(true);
         const { error } = await db.from('database_rujukan').delete().eq('id', id);
@@ -1872,6 +2083,7 @@ function filterDatabase() { let keyword = document.getElementById('searchDatabas
 function downloadTemplateDatabase() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", NAMA_PASIEN: "CONTOH PASIEN", POLI_RUANG: "POLI ANAK", TANGGAL_RUJUKAN: "2026-01-01", NO_INVOICE: "INV001", TAGIHAN_NF: 1000000, DISKON: 0, SUB_TOTAL: 1000000, COVER_YAYASAN: 1000000, BIAYA_PRIBADI: 0}]); XLSX.utils.book_append_sheet(wb, ws, "Template Database"); XLSX.writeFile(wb, "Template_Import_Database_Rujukan.xlsx"); showToast('Template berhasil diunduh!'); }
 
 async function importDatabaseExcel(event) {
+    if (!canWrite('import data rujukan')) return;
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -2014,8 +2226,8 @@ function renderPlafonTable() {
             <td>${progressBar}<br>${statusBadge}</td>
             <td class="text-center text-nowrap">
                 <button class="btn btn-sm btn-outline-info me-1" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="showPlafonDetail(this.dataset.p, this.dataset.ta)" title="Detail Penggunaan"><i class="fa-solid fa-list"></i></button>
-                <button class="btn btn-sm btn-warning me-1" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="editPlafonPegawai(this.dataset.p, this.dataset.ta)" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn btn-sm btn-danger" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="deletePlafonPegawai(this.dataset.p, this.dataset.ta)" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn btn-sm btn-warning me-1 needs-write" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="editPlafonPegawai(this.dataset.p, this.dataset.ta)" title="Edit Plafon"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-sm btn-danger needs-write" data-p="${escapeHtml(p.key)}" data-ta="${p.ta}" onclick="deletePlafonPegawai(this.dataset.p, this.dataset.ta)" title="Hapus Plafon"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>`;
     });
@@ -2077,7 +2289,8 @@ function showPlafonDetail(pegawaiName, ta) {
 }
 function getBidangByPegawai(pegawai) { let foundMaster = dataMasterPegawai.find(p => normalizeName(p.nama) === normalizeName(pegawai)); if (foundMaster) return foundMaster.bidang; let foundDb = dataDatabase.find(x => x.pegawai === pegawai); return foundDb ? foundDb.bidang : 'UMUM'; }
 
-async function openModalPlafon() { 
+async function openModalPlafon() {
+    if (!canWrite('set plafon')) return; 
     let nama = prompt("Masukkan Nama Pegawai untuk Setting Plafon:"); 
     if (!nama) return; 
     let cleanNama = cleanPegawaiName(nama); 
@@ -2117,6 +2330,7 @@ function filterBidangDb(q, bidang) {
 // dipindah ke nama/bidang baru. syncOther = true -> nama yang sama di Data Master, Database Rujukan
 // dan Cicilan ikut diperbaiki.
 async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, old, syncOther) {
+    if (!canWrite('simpan plafon')) return;
     showLoading(true);
     try {
         const n = normalizeName(pegawaiNama);
@@ -2169,7 +2383,8 @@ async function savePlafonRow(pegawaiNama, bidang, ta, nominal, focusRow, old, sy
     showLoading(false);
 }
 
-async function editPlafonPegawai(key, ta) { 
+async function editPlafonPegawai(key, ta) {
+    if (!canWrite('edit plafon')) return; 
     key = toKey(key);
     const { nama, bidang: keyBid } = parseKey(key);
     const isDup = dupNames.has(nama);
@@ -2201,6 +2416,7 @@ async function editPlafonPegawai(key, ta) {
 }
 
 async function deletePlafonPegawai(key, ta) {
+    if (!canWrite('hapus plafon')) return;
     key = toKey(key);
     const { nama, bidang } = parseKey(key);
     const isDup = dupNames.has(nama);
@@ -2245,7 +2461,8 @@ function downloadTemplatePlafon() {
     showToast('Template berhasil diunduh! Tahun Ajaran bisa dikosongkan, sistem akan otomatis menggunakan TA aktif.'); 
 }
 
-async function importPlafonExcel(event) { 
+async function importPlafonExcel(event) {
+    if (!canWrite('import plafon')) return; 
     const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); 
     reader.onload = async function(e) { 
         try { 
@@ -2393,25 +2610,59 @@ function updateKewajibanOtomatis() {
 }
 
 function toggleSkemaCicilan() { let skema = document.getElementById('cicSkema').value; let divTenor = document.getElementById('divTenor'); if (skema === 'BULANAN') { divTenor.classList.remove('d-none'); } else { divTenor.classList.add('d-none'); } }
-function openModalCicilan(preselectNama) { 
+function openModalCicilan(preselectNama = null, editId = null) {
+    if (!canWrite('buat/edit kesepakatan cicilan')) return; 
+    // Mode Edit: muat data cicilan yang akan diedit
+    let editData = null;
+    if (editId) { 
+        editData = dataCicilan.find(x => x.id === editId); 
+        if (!editData) { showToast('Data cicilan tidak ditemukan!', 'danger'); return; } 
+    }
     let selectPegawaiHtml = '<option value="">-- Pilih Pegawai --</option>'; 
     // Pegawai TIDAK AKTIF hanya ditampilkan bila masih punya sisa hutang
-    dataMasterPegawai.filter(p => p.status === 'AKTIF' || (p.status === 'TIDAK AKTIF' && getSisaHutangPegawai(p.nama) > 0)).forEach(p => { 
-        let na = p.status !== 'AKTIF';
+    let pegawaiList = dataMasterPegawai.filter(p => p.status === 'AKTIF' || (p.status === 'TIDAK AKTIF' && getSisaHutangPegawai(p.nama) > 0));
+    // Saat mode edit, pastikan pegawai milik cicilan ini tetap ada di daftar pilihan
+    if (editData && !pegawaiList.some(p => normalizeName(p.nama) === normalizeName(editData.pegawai))) {
+        pegawaiList = pegawaiList.concat([{ nama: editData.pegawai, bidang: '-', status: isPegawaiNonAktif(editData.pegawai) ? 'TIDAK AKTIF' : 'AKTIF' }]);
+    }
+    pegawaiList.forEach(p => { 
+        let na = p.status && p.status !== 'AKTIF';
         selectPegawaiHtml += '<option value="' + escapeHtml(p.nama) + '">' + escapeHtml(p.nama) + ' (' + escapeHtml(p.bidang) + ')' + (na ? ' - TIDAK AKTIF' : '') + '</option>'; 
     }); 
     document.getElementById('cicPegawai').innerHTML = selectPegawaiHtml; 
     document.getElementById('formCicilan').reset(); 
+    document.getElementById('cicEditId').value = editId || '';
     document.getElementById('cicTanggal').value = new Date().toISOString().split('T')[0]; 
     document.getElementById('cicSkema').value = 'BULANAN'; 
     document.getElementById('infoKewajiban').innerHTML = ''; 
     fillMetodeOptions('cicMetode', false, 'POTONG PAYROLL');
     toggleSkemaCicilan(); 
+    if (editData) {
+        // MODE EDIT: isi form dengan data lama
+        document.getElementById('modalCicilanTitle').innerText = 'Edit Kesepakatan Cicilan';
+        document.getElementById('btnCicilanSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Update Kesepakatan';
+        document.getElementById('cicPegawai').value = editData.pegawai;
+        document.getElementById('cicTanggal').value = parseExcelDate(editData.tanggal);
+        document.getElementById('cicTotal').value = editData.total_kewajiban;
+        document.getElementById('cicSkema').value = editData.skema === 'LANGSUNG' ? 'LANGSUNG' : 'BULANAN';
+        document.getElementById('cicTenor').value = (parseInt(editData.tenor) || 1);
+        fillMetodeOptions('cicMetode', isPegawaiNonAktif(editData.pegawai), editData.metode);
+        document.getElementById('cicKeterangan').value = editData.keterangan || '';
+        toggleSkemaCicilan();
+        let totalDibayar = editData.riwayat.reduce((s, r) => s + (Number(r.jumlah) || 0), 0);
+        document.getElementById('infoKewajiban').innerHTML = '<span class="text-primary"><i class="fa-solid fa-pen-to-square me-1"></i> Mode Edit:</span> ubah data sesuai kebutuhan. Sisa kewajiban dihitung ulang otomatis dari total pembayaran tercatat (' + formatRupiah(totalDibayar) + ' telah dibayar via ' + editData.riwayat.length + ' potongan).';
+    } else {
+        // MODE TAMBAH
+        document.getElementById('modalCicilanTitle').innerText = 'Buat Kesepakatan Cicilan Pegawai';
+        document.getElementById('btnCicilanSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Simpan Kesepakatan';
+    }
     if (typeof preselectNama === 'string' && preselectNama) { document.getElementById('cicPegawai').value = preselectNama; updateKewajibanOtomatis(); }
     showModal('modalCicilan'); 
 }
 async function saveCicilan(event) { 
+    if (!canWrite('simpan kesepakatan cicilan')) return;
     event.preventDefault(); 
+    let editId = document.getElementById('cicEditId').value || null;
     let pegawai = document.getElementById('cicPegawai').value; 
     let totalKewajiban = parseFloat(document.getElementById('cicTotal').value) || 0; 
     let skema = document.getElementById('cicSkema').value; 
@@ -2421,10 +2672,31 @@ async function saveCicilan(event) {
     let tanggal = document.getElementById('cicTanggal').value; 
     if (!pegawai || totalKewajiban <= 0) { showToast('Pegawai dan Total Kewajiban wajib diisi!', 'warning'); return; } 
 
-    // Kebijakan Yayasan: hanya untuk pegawai TIDAK AKTIF; hutang langsung dicatat ditanggung yayasan
+    // Kebijakan Yayasan: hanya untuk pegawai TIDAK AKTIF
     const isKebijakan = metode === 'KEBIJAKAN YAYASAN';
+    if (isKebijakan && !isPegawaiNonAktif(pegawai)) { showToast('Kebijakan Yayasan hanya untuk pegawai yang sudah TIDAK AKTIF.', 'warning'); return; }
+    
+    // ===== MODE EDIT (Update) =====
+    if (editId) {
+        let old = dataCicilan.find(x => x.id === editId);
+        if (!old) { showToast('Data cicilan tidak ditemukan!', 'danger'); return; }
+        let totalDibayar = old.riwayat.reduce((s, r) => s + (Number(r.jumlah) || 0), 0);
+        let sisaBaru = totalKewajiban - totalDibayar;
+        if (sisaBaru < 0) sisaBaru = 0;
+        let statusBaru = sisaBaru <= 0 ? 'LUNAS' : 'AKTIF';
+        if (!confirm('Update kesepakatan cicilan ' + old.pegawai + '?\n\nTotal Kewajiban: ' + formatRupiah(old.total_kewajiban) + ' -> ' + formatRupiah(totalKewajiban) + '\nSudah Dibayar: ' + formatRupiah(totalDibayar) + '\nSisa Kewajiban Baru: ' + formatRupiah(sisaBaru) + '\n\nStatus cicilan akan disesuaikan otomatis.')) return;
+        showLoading(true);
+        let payload = { pegawai: normalizeName(pegawai), tanggal, total_kewajiban: totalKewajiban, sisa_kewajiban: sisaBaru, skema, tenor, metode, keterangan, status: statusBaru };
+        const { error } = await db.from('cicilan').update(payload).eq('id', editId);
+        if (error) { showToast('Error: ' + error.message, 'danger'); showLoading(false); return; }
+        await loadInitialData(); hideModal('modalCicilan'); 
+        showToast('Kesepakatan cicilan berhasil diperbarui! Sisa kewajiban: ' + formatRupiah(sisaBaru));
+        showLoading(false);
+        return;
+    }
+
+    // ===== MODE TAMBAH (Insert) =====
     if (isKebijakan) {
-        if (!isPegawaiNonAktif(pegawai)) { showToast('Kebijakan Yayasan hanya untuk pegawai yang sudah TIDAK AKTIF.', 'warning'); return; }
         const sisaHutang = getSisaHutangPegawai(pegawai);
         if (totalKewajiban > sisaHutang) { showToast('Nominal melebihi sisa hutang pegawai (' + formatRupiah(sisaHutang) + ').', 'warning'); return; }
         if (!confirm('Hutang ' + normalizeName(pegawai) + ' sebesar ' + formatRupiah(totalKewajiban) + ' akan DITANGGUNG YAYASAN (Kebijakan Yayasan) dan dihapus dari sisa hutang pegawai. Lanjutkan?')) return;
@@ -2461,7 +2733,7 @@ function renderCicilanTable() {
         let rowNumber = startIndex + index + 1;
         let statusBadge = (c.metode === 'KEBIJAKAN YAYASAN' && c.status === 'LUNAS') ? '<span class="badge bg-info text-dark">Ditanggung Yayasan</span>' : c.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : c.status === 'DIBATALKAN' ? '<span class="badge bg-danger">Dibatalkan</span>' : '<span class="badge bg-warning text-dark">Aktif</span>';
         let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel)' : 'Langsung Lunas';
-        html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + escapeHtml(c.pegawai) + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + escapeHtml(c.metode) + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-danger" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan"><i class="fa-solid fa-ban"></i></button></td></tr>';
+        html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + escapeHtml(c.pegawai) + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + escapeHtml(c.metode) + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalCicilan(null, \'' + c.id + '\')" title="Edit Kesepakatan"><i class="fa-solid fa-pen"></i></button>' + (c.status === 'AKTIF' ? ' <button class="btn btn-sm btn-outline-danger needs-write" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan (tandai dibatalkan tanpa hapus data)"><i class="fa-solid fa-ban"></i></button>' : '') + ' <button class="btn btn-sm btn-danger needs-write" onclick="hapusCicilan(\'' + c.id + '\')" title="Hapus Permanen (termasuk riwayat pembayaran)"><i class="fa-solid fa-trash"></i></button></td></tr>';
     });
     document.getElementById('cicilanTableBody').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Belum ada data cicilan</td></tr>';
     let endRecord = Math.min(startIndex + pageSize, totalRows);
@@ -2480,14 +2752,12 @@ async function showCicilanDetail(cicilanId) {
     let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
     document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
     document.getElementById('bayarCicilanId').value = c.id; 
-    document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0]; 
-    document.getElementById('bayarJumlah').value = ''; 
-    fillMetodeOptions('bayarMetode', isPegawaiNonAktif(c.pegawai), c.metode); 
+    resetBayarForm(); // selalu mulai dari mode "Catat Baru" saat membuka detail
     
     let html = ''; 
     if (c.riwayat && c.riwayat.length > 0) {
         c.riwayat.forEach((r, idx) => { 
-            html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(r.tanggal) + '</td><td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td><td>' + r.metode + '</td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="hapusPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')"><i class="fa-solid fa-trash"></i></button></td></tr>'; 
+            html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(r.tanggal) + '</td><td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td><td>' + r.metode + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="editPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')" title="Edit Potongan / Pembayaran"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-outline-danger needs-write" onclick="hapusPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')" title="Hapus Potongan / Pembayaran"><i class="fa-solid fa-trash"></i></button></td></tr>'; 
         }); 
     } else {
         html = '<tr><td colspan="5" class="text-center text-muted">Belum ada pembayaran</td></tr>';
@@ -2496,8 +2766,10 @@ async function showCicilanDetail(cicilanId) {
     showModal('modalCicilanDetail'); 
 }
 async function bayarCicilan(event) { 
+    if (!canWrite('catat/edit potongan cicilan')) return;
     event.preventDefault(); 
     let cicilanId = document.getElementById('bayarCicilanId').value; 
+    let editRiwayatId = document.getElementById('bayarEditId').value || null;
     let c = dataCicilan.find(x => x.id === cicilanId); 
     if (!c) return; 
     let jumlah = parseFloat(document.getElementById('bayarJumlah').value) || 0; 
@@ -2505,6 +2777,32 @@ async function bayarCicilan(event) {
     let metode = document.getElementById('bayarMetode').value; 
     if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; }
     if (metode === 'KEBIJAKAN YAYASAN' && !isPegawaiNonAktif(c.pegawai)) { showToast('Kebijakan Yayasan hanya untuk pegawai TIDAK AKTIF.', 'warning'); return; }
+    
+    // ===== MODE EDIT POTONGAN / PEMBAYARAN =====
+    if (editRiwayatId) {
+        let target = c.riwayat.find(r => String(r.id) === String(editRiwayatId));
+        if (!target) { showToast('Data pembayaran tidak ditemukan!', 'danger'); return; }
+        let totalKewajiban = Number(c.total_kewajiban) || 0;
+        let dibayarLain = c.riwayat.reduce((s, r) => s + (String(r.id) === String(editRiwayatId) ? 0 : (Number(r.jumlah) || 0)), 0);
+        let sisaSebelumEdit = Math.max(0, totalKewajiban - dibayarLain);
+        if (metode === 'KEBIJAKAN YAYASAN' && !confirm('Nominal ' + formatRupiah(jumlah) + ' akan DITANGGUNG YAYASAN (Kebijakan Yayasan). Lanjutkan?')) return;
+        if (jumlah > sisaSebelumEdit && !confirm('Nominal melebihi sisa kewajiban (' + formatRupiah(sisaSebelumEdit) + '). Sisa akan dianggap lebih bayar. Lanjutkan?')) return;
+        showLoading(true);
+        const { error: errUpd } = await db.from('cicilan_riwayat').update({ tanggal, jumlah, metode }).eq('id', editRiwayatId);
+        if (errUpd) { showToast('Error: ' + errUpd.message, 'danger'); showLoading(false); return; }
+        // Hitung ulang sisa kewajiban & status dari total kewajiban - seluruh pembayaran (dengan nilai terbaru)
+        let totalDibayarBaru = dibayarLain + jumlah;
+        let sisaBaru = totalKewajiban - totalDibayarBaru;
+        if (sisaBaru < 0) sisaBaru = 0;
+        let statusBaru = sisaBaru <= 0 ? 'LUNAS' : 'AKTIF';
+        const { error: errUpdC } = await db.from('cicilan').update({ sisa_kewajiban: sisaBaru, status: statusBaru }).eq('id', cicilanId);
+        if (errUpdC) showToast('Error: ' + errUpdC.message, 'danger');
+        else { await loadInitialData(); showCicilanDetail(cicilanId); showToast('Pembayaran / potongan berhasil diperbarui!'); }
+        showLoading(false);
+        return;
+    }
+
+    // ===== MODE CATAT BARU =====
     if (metode === 'KEBIJAKAN YAYASAN' && !confirm('Nominal ' + formatRupiah(jumlah) + ' akan DITANGGUNG YAYASAN (Kebijakan Yayasan). Lanjutkan?')) return; 
     if (jumlah > c.sisa_kewajiban) { if (!confirm('Nominal melebihi sisa kewajiban (' + formatRupiah(c.sisa_kewajiban) + '). Sisa akan dianggap lebih bayar. Lanjutkan?')) return; } 
     
@@ -2522,14 +2820,15 @@ async function bayarCicilan(event) {
     showLoading(false);
 }
 async function hapusPembayaranCicilan(cicilanId, riwayatId) { 
-    if (!confirm('Yakin ingin membatalkan pembayaran ini?')) return; 
+    if (!canWrite('hapus potongan cicilan')) return;
     let c = dataCicilan.find(x => x.id === cicilanId); 
     if (!c) return; 
-    let pembayaran = c.riwayat.find(r => r.id === riwayatId);
+    let pembayaran = c.riwayat.find(r => String(r.id) === String(riwayatId));
     if (!pembayaran) return;
+    if (!confirm('Yakin ingin MENGHAPUS pembayaran/potongan ini?\n\nTanggal: ' + parseExcelDate(pembayaran.tanggal) + '\nNominal: ' + formatRupiah(pembayaran.jumlah) + '\nMetode: ' + pembayaran.metode + '\n\nSisa kewajiban pegawai akan bertambah otomatis.')) return; 
     
     showLoading(true);
-    const { error: errDel } = await db.from('cicilan_riwayat').delete().eq('id', riwayatId);
+    const { error: errDel } = await db.from('cicilan_riwayat').delete().eq('id', pembayaran.id);
     if (errDel) { showToast('Error: ' + errDel.message, 'danger'); showLoading(false); return; }
     
     let sisaBaru = Number(c.sisa_kewajiban) + Number(pembayaran.jumlah);
@@ -2538,15 +2837,75 @@ async function hapusPembayaranCicilan(cicilanId, riwayatId) {
     
     const { error: errUpd } = await db.from('cicilan').update({ sisa_kewajiban: sisaBaru, status: statusBaru }).eq('id', cicilanId);
     if (errUpd) showToast('Error: ' + errUpd.message, 'danger');
-    else { await loadInitialData(); showCicilanDetail(cicilanId); showToast('Pembayaran dibatalkan.'); }
+    else { await loadInitialData(); showCicilanDetail(cicilanId); showToast('Pembayaran / potongan dihapus.'); }
     showLoading(false);
 }
+// ===== EDIT & HAPUS POTONGAN / PEMBAYARAN (Riwayat Cicilan) =====
+function editPembayaranCicilan(cicilanId, riwayatId) { 
+    if (!canWrite('edit potongan cicilan')) return;
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    let r = c.riwayat.find(x => String(x.id) === String(riwayatId));
+    if (!r) { showToast('Data pembayaran tidak ditemukan!', 'danger'); return; }
+    // Isi form pembayaran dengan data lama dan aktifkan Mode Edit
+    document.getElementById('bayarCicilanId').value = c.id;
+    document.getElementById('bayarEditId').value = r.id;
+    document.getElementById('bayarTanggal').value = parseExcelDate(r.tanggal);
+    document.getElementById('bayarJumlah').value = r.jumlah;
+    fillMetodeOptions('bayarMetode', isPegawaiNonAktif(c.pegawai), r.metode);
+    document.getElementById('bayarFormTitle').innerHTML = '<i class="fa-solid fa-pen me-1"></i> Edit Pembayaran / Potongan <span class="badge bg-warning text-dark ms-1">Mode Edit</span>';
+    document.getElementById('btnBayarSubmit').innerHTML = '<i class="fa-solid fa-save"></i>';
+    document.getElementById('btnBayarSubmit').title = 'Update Pembayaran / Potongan';
+    document.getElementById('btnBayarCancelEdit').style.display = '';
+    document.getElementById('bayarJumlah').focus();
+    showToast('Mode edit potongan. Ubah data lalu klik tombol simpan.', 'info');
+}
+// Kembalikan form pembayaran ke mode "Catat Baru"
+function resetBayarForm() {
+    let cicilanId = document.getElementById('bayarCicilanId').value;
+    let c = dataCicilan.find(x => x.id === cicilanId);
+    document.getElementById('bayarEditId').value = '';
+    document.getElementById('bayarTanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('bayarJumlah').value = '';
+    fillMetodeOptions('bayarMetode', c ? isPegawaiNonAktif(c.pegawai) : false, c ? c.metode : 'POTONG PAYROLL');
+    document.getElementById('bayarFormTitle').innerHTML = '<i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran / Potongan Baru';
+    document.getElementById('btnBayarSubmit').innerHTML = '<i class="fa-solid fa-check"></i>';
+    document.getElementById('btnBayarSubmit').title = 'Catat Pembayaran';
+    document.getElementById('btnBayarCancelEdit').style.display = 'none';
+}
 async function batalkanCicilan(cicilanId) { 
-    if (!confirm('Yakin ingin membatalkan seluruh kesepakatan cicilan ini?')) return; 
+    if (!canWrite('batalkan cicilan')) return;
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    if (!confirm('Yakin ingin MEMBATALKAN kesepakatan cicilan ' + c.pegawai + '?\n\nData TIDAK terhapus (masih tersimpan di riwayat), hanya ditandai berstatus DIBATALKAN.')) return; 
     showLoading(true);
     const { error } = await db.from('cicilan').update({ status: 'DIBATALKAN' }).eq('id', cicilanId);
     if (error) showToast('Error: ' + error.message, 'danger');
     else { await loadInitialData(); showToast('Cicilan dibatalkan.'); }
+    showLoading(false);
+}
+// Hapus permanen kesepakatan cicilan beserta seluruh riwayat pembayarannya
+async function hapusCicilan(cicilanId) { 
+    if (!canWrite('hapus cicilan')) return;
+    let c = dataCicilan.find(x => x.id === cicilanId); 
+    if (!c) return; 
+    let totalDibayar = c.riwayat.reduce((s, r) => s + (Number(r.jumlah) || 0), 0);
+    let msg = 'Yakin ingin MENGHAPUS PERMANEN kesepakatan cicilan ' + c.pegawai + '?\n\n' +
+        'Total Kewajiban: ' + formatRupiah(c.total_kewajiban) + '\n' +
+        'Sudah Dibayar: ' + formatRupiah(totalDibayar) + ' (' + c.riwayat.length + ' potongan)\n' +
+        'Metode: ' + c.metode + ' | Status: ' + c.status + '\n\n' +
+        'PERHATIAN: Seluruh riwayat pembayaran ikut terhapus dan sisa hutang pegawai akan kembali penuh.\nTindakan ini TIDAK dapat dibatalkan!';
+    if (!confirm(msg)) return; 
+    showLoading(true);
+    // Hapus dulu seluruh riwayat pembayaran milik kesepakatan ini
+    if (c.riwayat && c.riwayat.length > 0) {
+        const { error: errR } = await db.from('cicilan_riwayat').delete().eq('cicilan_id', cicilanId);
+        if (errR) { showToast('Error hapus riwayat pembayaran: ' + errR.message, 'danger'); showLoading(false); return; }
+    }
+    const { error: errC } = await db.from('cicilan').delete().eq('id', cicilanId);
+    if (errC) { showToast('Error hapus cicilan: ' + errC.message, 'danger'); showLoading(false); return; }
+    await loadInitialData(); 
+    showToast('Kesepakatan cicilan ' + c.pegawai + ' beserta ' + c.riwayat.length + ' riwayat pembayaran berhasil dihapus permanen.');
     showLoading(false);
 }
 
@@ -2710,6 +3069,7 @@ function setupRealtimeSync() {
 
 // ===== MIGRATION FUNCTION =====
 async function migrateLocalToSupabase() {
+    if (!canWrite('migrasi data ke cloud')) return;
     if (!confirm('Apakah Anda yakin ingin memigrasikan semua data dari browser ke Supabase? Pastikan Anda menjalankan ini di browser yang masih menyimpan data lama.')) return;
     
     showLoading(true);
@@ -2887,6 +3247,7 @@ async function loadInitialData() {
 
 // ===== [FIX] DOMContentLoaded - Tambahkan setupSpouseDropdownEvents =====
 window.addEventListener('DOMContentLoaded', () => { 
+    restoreRoleSession(); // pulihkan hak akses (Pengelola/Pimpinan) jika sesi masih ada
     setupFileInputs(); 
     setupSpouseDropdownEvents(); // [FIX] Setup event delegation untuk dropdown spouse
     loadInitialData();
@@ -2895,4 +3256,4 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-</html>
+</html>
