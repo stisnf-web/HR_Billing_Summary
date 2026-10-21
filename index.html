@@ -346,11 +346,20 @@
                 <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="cicilanPageSize" class="form-select form-select-sm" onchange="currentPageCicilan=1; renderCicilanTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
             </div>
             <div class="table-responsive" style="min-height: 350px;">
-                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai</th><th>Total Kewajiban</th><th>Sisa Tagihan</th><th>Skema</th><th>Metode</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="cicilanTableBody"></tbody></table>
+                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai</th><th>Total Kewajiban</th><th>Sudah Dicicil</th><th>Sisa Tagihan</th><th>Skema</th><th>Metode</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="cicilanTableBody"></tbody></table>
             </div>
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <div class="small text-muted" id="cicilanPaginationInfo">Menampilkan data...</div>
                 <ul class="pagination pagination-sm mb-0" id="cicilanPaginationNav"></ul>
+            </div>
+        </div>
+
+        <div class="table-container mt-3">
+            <h5 class="fw-bold mb-1"><i class="fa-solid fa-users text-success me-2"></i> Rekap Cicilan per SDM (Pegawai)</h5>
+            <p class="small text-muted mb-3">Jumlah <strong>sudah dicicil</strong> dan total potongan untuk masing-masing SDM. Cicilan berstatus <em>DIBATALKAN</em> tidak diikutkan dalam rekap ini.</p>
+            <div class="row g-2 mb-3" id="rekapCicilanStats"></div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai (SDM)</th><th class="text-center">Jml Cicilan</th><th class="text-center">Jml Potongan</th><th>Total Kewajiban</th><th>Sudah Dicicil</th><th>Sisa Tagihan</th><th style="min-width:150px;">Progres Cicilan</th></tr></thead><tbody id="rekapCicilanBody"></tbody><tfoot id="rekapCicilanFoot"></tfoot></table>
             </div>
         </div>
     </div>
@@ -2722,6 +2731,45 @@ async function saveCicilan(event) {
     showLoading(false);
 }
 
+// ===== [BARU] REKAP JUMLAH SUDAH DICICIL PER SDM (PEGAWAI) =====
+// Total yang sudah dicicil per kesepakatan = total kewajiban - sisa kewajiban
+// (mencakup seluruh potongan/pembayaran tercatat, termasuk Kebijakan Yayasan)
+function getTotalDibayarCicilan(c) { return (Number(c.total_kewajiban) || 0) - (Number(c.sisa_kewajiban) || 0); }
+
+function renderRekapCicilanPerSdm() {
+    const bodyEl = document.getElementById('rekapCicilanBody');
+    if (!bodyEl) return;
+    let sdmMap = {};
+    dataCicilan.forEach(c => {
+        if (c.status === 'DIBATALKAN') return; // cicilan dibatalkan tidak diikutkan rekap
+        if (!sdmMap[c.pegawai]) sdmMap[c.pegawai] = { nama: c.pegawai, jmlCicilan: 0, jmlPotongan: 0, totalKewajiban: 0, sudahDicicil: 0, sisa: 0 };
+        const s = sdmMap[c.pegawai];
+        s.jmlCicilan += 1;
+        s.jmlPotongan += (c.riwayat ? c.riwayat.length : 0);
+        s.totalKewajiban += (Number(c.total_kewajiban) || 0);
+        s.sudahDicicil += Math.max(0, getTotalDibayarCicilan(c));
+        s.sisa += (Number(c.sisa_kewajiban) || 0);
+    });
+    const list = Object.values(sdmMap).sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id'));
+    const totKewajiban = list.reduce((s, r) => s + r.totalKewajiban, 0);
+    const totDicicil = list.reduce((s, r) => s + r.sudahDicicil, 0);
+    const totSisa = list.reduce((s, r) => s + r.sisa, 0);
+    const statsEl = document.getElementById('rekapCicilanStats');
+    if (statsEl) statsEl.innerHTML =
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Kewajiban Cicilan</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(totKewajiban) + '</h5></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100 border-success"><div class="small text-muted">Total Sudah Dicicil (Semua SDM)</div><h5 class="fw-bold text-success mb-0">' + formatRupiah(totDicicil) + '</h5></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Sisa Tagihan</div><h5 class="fw-bold text-danger mb-0">' + formatRupiah(totSisa) + '</h5></div></div>';
+    let html = '';
+    list.forEach((r, idx) => {
+        let pct = r.totalKewajiban > 0 ? Math.min(100, Math.round((r.sudahDicicil / r.totalKewajiban) * 100)) : 0;
+        let barColor = pct >= 100 ? 'bg-success' : (pct > 0 ? 'bg-warning' : 'bg-secondary');
+        html += '<tr><td>' + (idx + 1) + '</td><td class="fw-bold">' + escapeHtml(r.nama) + '</td><td class="text-center">' + r.jmlCicilan + '</td><td class="text-center"><span class="badge bg-secondary">' + r.jmlPotongan + '</span></td><td class="text-primary">' + formatRupiah(r.totalKewajiban) + '</td><td class="fw-bold text-success">' + formatRupiah(r.sudahDicicil) + '</td><td class="' + (r.sisa > 0 ? 'text-danger fw-bold' : 'text-success') + '">' + formatRupiah(r.sisa) + '</td><td><div class="progress" style="height:18px;"><div class="progress-bar ' + barColor + '" style="width:' + pct + '%;">' + pct + '%</div></div></td></tr>';
+    });
+    bodyEl.innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Belum ada data cicilan aktif</td></tr>';
+    const footEl = document.getElementById('rekapCicilanFoot');
+    if (footEl) footEl.innerHTML = list.length ? '<tr class="table-light"><td colspan="4" class="text-end fw-bold">TOTAL KESELURUHAN</td><td class="fw-bold text-primary">' + formatRupiah(totKewajiban) + '</td><td class="fw-bold text-success">' + formatRupiah(totDicicil) + '</td><td class="fw-bold text-danger">' + formatRupiah(totSisa) + '</td><td></td></tr>' : '';
+}
+
 function renderCicilanTable() {
     renderAlertHutangNonaktif();
     let searchKeyword = (document.getElementById('searchCicilan')?.value || '').toLowerCase();
@@ -2732,24 +2780,28 @@ function renderCicilanTable() {
     paginatedData.forEach((c, index) => {
         let rowNumber = startIndex + index + 1;
         let statusBadge = (c.metode === 'KEBIJAKAN YAYASAN' && c.status === 'LUNAS') ? '<span class="badge bg-info text-dark">Ditanggung Yayasan</span>' : c.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : c.status === 'DIBATALKAN' ? '<span class="badge bg-danger">Dibatalkan</span>' : '<span class="badge bg-warning text-dark">Aktif</span>';
+        let dibayar = Math.max(0, getTotalDibayarCicilan(c));
         let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel)' : 'Langsung Lunas';
-        html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + escapeHtml(c.pegawai) + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + escapeHtml(c.metode) + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalCicilan(null, \'' + c.id + '\')" title="Edit Kesepakatan"><i class="fa-solid fa-pen"></i></button>' + (c.status === 'AKTIF' ? ' <button class="btn btn-sm btn-outline-danger needs-write" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan (tandai dibatalkan tanpa hapus data)"><i class="fa-solid fa-ban"></i></button>' : '') + ' <button class="btn btn-sm btn-danger needs-write" onclick="hapusCicilan(\'' + c.id + '\')" title="Hapus Permanen (termasuk riwayat pembayaran)"><i class="fa-solid fa-trash"></i></button></td></tr>';
+        html += '<tr><td>' + rowNumber + '</td><td class="fw-bold">' + escapeHtml(c.pegawai) + '</td><td class="text-primary">' + formatRupiah(c.total_kewajiban) + '</td><td class="fw-bold text-success">' + formatRupiah(dibayar) + '</td><td class="fw-bold ' + (c.sisa_kewajiban > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(c.sisa_kewajiban) + '</td><td>' + skemaText + '</td><td><span class="badge bg-secondary">' + escapeHtml(c.metode) + '</span></td><td class="text-center">' + statusBadge + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="showCicilanDetail(\'' + c.id + '\')" title="Detail & Bayar"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalCicilan(null, \'' + c.id + '\')" title="Edit Kesepakatan"><i class="fa-solid fa-pen"></i></button>' + (c.status === 'AKTIF' ? ' <button class="btn btn-sm btn-outline-danger needs-write" onclick="batalkanCicilan(\'' + c.id + '\')" title="Batalkan (tandai dibatalkan tanpa hapus data)"><i class="fa-solid fa-ban"></i></button>' : '') + ' <button class="btn btn-sm btn-danger needs-write" onclick="hapusCicilan(\'' + c.id + '\')" title="Hapus Permanen (termasuk riwayat pembayaran)"><i class="fa-solid fa-trash"></i></button></td></tr>';
     });
-    document.getElementById('cicilanTableBody').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Belum ada data cicilan</td></tr>';
+    document.getElementById('cicilanTableBody').innerHTML = html || '<tr><td colspan="9" class="text-center text-muted">Belum ada data cicilan</td></tr>';
     let endRecord = Math.min(startIndex + pageSize, totalRows);
     document.getElementById('cicilanPaginationInfo').innerText = 'Menampilkan ' + (totalRows > 0 ? startIndex + 1 : 0) + ' - ' + endRecord + ' dari ' + totalRows + ' data';
     let navHtml = '<li class="page-item ' + (currentPageCicilan === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + (currentPageCicilan - 1) + ')">Prev</a></li>';
     for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPageCicilan - 1 && i <= currentPageCicilan + 1)) { navHtml += '<li class="page-item ' + (currentPageCicilan === i ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + i + ')">' + i + '</a></li>'; } }
     navHtml += '<li class="page-item ' + (currentPageCicilan === totalPages || totalPages === 0 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeCicilanPage(' + (currentPageCicilan + 1) + ')">Next</a></li>';
     document.getElementById('cicilanPaginationNav').innerHTML = navHtml;
+    // [BARU] Segarkan rekap jumlah sudah dicicil per SDM setiap kali tabel cicilan dirender
+    renderRekapCicilanPerSdm();
 }
 function changeCicilanPage(page) { currentPageCicilan = page; renderCicilanTable(); }
 async function showCicilanDetail(cicilanId) { 
     let c = dataCicilan.find(x => x.id === cicilanId); 
     if (!c) return; 
-    document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai + (isPegawaiNonAktif(c.pegawai) ? ' (TIDAK AKTIF)' : ''); 
+    document.getElementById('modalCicilanDetailTitle').innerText = 'Detail Cicilan: ' + c.pegawai + (isPegawaiNonAktif(c.pegawai) ? ' (TIDAK AKTIF)' : '');
+    let dibayarDetail = getTotalDibayarCicilan(c); 
     let skemaText = c.skema === 'BULANAN' ? 'Bulanan (Fleksibel, Estimasi ' + c.tenor + ' bulan)' : 'Langsung Lunas'; 
-    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
+    let infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Tanggal Mulai:</strong> ' + parseExcelDate(c.tanggal) + '</p><p class="mb-1"><strong>Total Kewajiban:</strong> ' + formatRupiah(c.total_kewajiban) + '</p><p class="mb-1"><strong>Sudah Dicicil:</strong> <span class="text-success fw-bold">' + formatRupiah(dibayarDetail) + '</span> (' + (c.metode === 'KEBIJAKAN YAYASAN' ? 'Ditanggung Yayasan' : c.riwayat.length + ' potongan') + ')</p><p class="mb-1"><strong>Sisa Kewajiban:</strong> <span class="text-danger fw-bold">' + formatRupiah(c.sisa_kewajiban) + '</span></p></div><div class="col-md-6"><p class="mb-1"><strong>Skema:</strong> ' + skemaText + '</p><p class="mb-1"><strong>Metode:</strong> ' + c.metode + '</p><p class="mb-1"><strong>Keterangan:</strong> ' + (c.keterangan || '-') + '</p><p class="mb-1"><strong>Status:</strong> ' + c.status + '</p></div>'; 
     document.getElementById('cicilanDetailInfo').innerHTML = infoHtml; 
     document.getElementById('bayarCicilanId').value = c.id; 
     resetBayarForm(); // selalu mulai dari mode "Catat Baru" saat membuka detail
