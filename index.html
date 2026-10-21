@@ -355,8 +355,14 @@
         </div>
 
         <div class="table-container mt-3">
-            <h5 class="fw-bold mb-1"><i class="fa-solid fa-users text-success me-2"></i> Rekap Cicilan per SDM (Pegawai)</h5>
-            <p class="small text-muted mb-3">Jumlah <strong>sudah dicicil</strong> dan total potongan untuk masing-masing SDM. Cicilan berstatus <em>DIBATALKAN</em> tidak diikutkan dalam rekap ini.</p>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-users text-success me-2"></i> Rekap Cicilan per SDM (Pegawai)</h5>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <div class="input-group input-group-sm" style="width: 230px;"><span class="input-group-text bg-success text-white">TA</span><select id="filterRekapCicilanTa" class="form-select form-select-sm fw-bold text-success" onchange="renderRekapCicilanPerSdm()"><option value="SEMUA">Semua Tahun Ajaran</option></select></div>
+                    <button class="btn btn-success btn-sm" onclick="exportRekapCicilanExcel()" title="Export rekap cicilan per SDM ke file Excel"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
+                </div>
+            </div>
+            <p class="small text-muted mb-3" id="rekapCicilanSub">Jumlah <strong>sudah dicicil</strong> dan total potongan untuk masing-masing SDM. Cicilan berstatus <em>DIBATALKAN</em> tidak diikutkan dalam rekap ini.</p>
             <div class="row g-2 mb-3" id="rekapCicilanStats"></div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Nama Pegawai (SDM)</th><th class="text-center">Jml Cicilan</th><th class="text-center">Jml Potongan</th><th>Total Kewajiban</th><th>Sudah Dicicil</th><th>Sisa Tagihan</th><th style="min-width:150px;">Progres Cicilan</th></tr></thead><tbody id="rekapCicilanBody"></tbody><tfoot id="rekapCicilanFoot"></tfoot></table>
@@ -534,7 +540,7 @@
                 <form id="formCicilan" onsubmit="saveCicilan(event)">
                     <input type="hidden" id="cicEditId">
                     <div class="row g-3">
-                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><select id="cicPegawai" class="form-select" required onchange="updateKewajibanOtomatis()"></select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Nama Pegawai</label><input type="text" id="cicPegawaiSearch" class="form-control form-control-sm mb-2" placeholder="Ketik nama pegawai untuk mencari / memfilter daftar di bawah..." oninput="filterCicPegawaiOptions()" autocomplete="off"><select id="cicPegawai" class="form-select" required onchange="updateKewajibanOtomatis()"></select></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Tanggal Mulai / Kesepakatan</label><input type="date" id="cicTanggal" class="form-control" required></div>
                         <div class="col-md-12"><label class="form-label fw-bold">Total Kewajiban (Rp) <span class="text-danger small">(Otomatis dari tagihan & plafon)</span></label><input type="number" id="cicTotal" class="form-control" required><div id="infoKewajiban" class="small text-muted mt-1"></div></div>
                         <div class="col-md-6"><label class="form-label fw-bold">Skema Pembayaran</label><select id="cicSkema" class="form-select" onchange="toggleSkemaCicilan()"><option value="BULANAN">Cicilan Per Bulan (Fleksibel)</option><option value="LANGSUNG">Bayar Langsung Lunas (1x)</option></select></div>
@@ -2619,6 +2625,23 @@ function updateKewajibanOtomatis() {
 }
 
 function toggleSkemaCicilan() { let skema = document.getElementById('cicSkema').value; let divTenor = document.getElementById('divTenor'); if (skema === 'BULANAN') { divTenor.classList.remove('d-none'); } else { divTenor.classList.add('d-none'); } }
+
+// ===== [BARU] PENCARIAN NAMA PEGAWAI DI FORM KESEPAKATAN CICILAN =====
+function filterCicPegawaiOptions() {
+    const input = document.getElementById('cicPegawaiSearch');
+    const sel = document.getElementById('cicPegawai');
+    if (!input || !sel) return;
+    const q = input.value.toLowerCase().trim();
+    Array.from(sel.options).forEach(opt => {
+        if (!opt.value) { opt.hidden = !!q; return; } // placeholder disembunyikan saat mencari
+        opt.hidden = !!q && !opt.textContent.toLowerCase().includes(q);
+    });
+    // Bila hasil pencarian tepat 1 nama, pilih otomatis (hanya mode tambah, agar total edit tidak tertimpa)
+    if (q && !document.getElementById('cicEditId')?.value) {
+        const visible = Array.from(sel.options).filter(o => o.value && !o.hidden);
+        if (visible.length === 1 && sel.value !== visible[0].value) { sel.value = visible[0].value; updateKewajibanOtomatis(); }
+    }
+}
 function openModalCicilan(preselectNama = null, editId = null) {
     if (!canWrite('buat/edit kesepakatan cicilan')) return; 
     // Mode Edit: muat data cicilan yang akan diedit
@@ -2640,6 +2663,7 @@ function openModalCicilan(preselectNama = null, editId = null) {
     }); 
     document.getElementById('cicPegawai').innerHTML = selectPegawaiHtml; 
     document.getElementById('formCicilan').reset(); 
+    const cicSearchEl = document.getElementById('cicPegawaiSearch'); if (cicSearchEl) cicSearchEl.value = '';
     document.getElementById('cicEditId').value = editId || '';
     document.getElementById('cicTanggal').value = new Date().toISOString().split('T')[0]; 
     document.getElementById('cicSkema').value = 'BULANAN'; 
@@ -2736,12 +2760,13 @@ async function saveCicilan(event) {
 // (mencakup seluruh potongan/pembayaran tercatat, termasuk Kebijakan Yayasan)
 function getTotalDibayarCicilan(c) { return (Number(c.total_kewajiban) || 0) - (Number(c.sisa_kewajiban) || 0); }
 
-function renderRekapCicilanPerSdm() {
-    const bodyEl = document.getElementById('rekapCicilanBody');
-    if (!bodyEl) return;
+// ===== [BARU] AGREGATOR REKAP CICILAN PER SDM + FILTER TAHUN AJARAN + EXPORT EXCEL =====
+function buildRekapCicilanPerSdm() {
+    const taFilter = document.getElementById('filterRekapCicilanTa')?.value || 'SEMUA';
     let sdmMap = {};
     dataCicilan.forEach(c => {
         if (c.status === 'DIBATALKAN') return; // cicilan dibatalkan tidak diikutkan rekap
+        if (taFilter !== 'SEMUA' && getTahunAjaran(c.tanggal) !== taFilter) return; // filter tahun ajaran (Juli-Juni)
         if (!sdmMap[c.pegawai]) sdmMap[c.pegawai] = { nama: c.pegawai, jmlCicilan: 0, jmlPotongan: 0, totalKewajiban: 0, sudahDicicil: 0, sisa: 0 };
         const s = sdmMap[c.pegawai];
         s.jmlCicilan += 1;
@@ -2751,14 +2776,73 @@ function renderRekapCicilanPerSdm() {
         s.sisa += (Number(c.sisa_kewajiban) || 0);
     });
     const list = Object.values(sdmMap).sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id'));
-    const totKewajiban = list.reduce((s, r) => s + r.totalKewajiban, 0);
-    const totDicicil = list.reduce((s, r) => s + r.sudahDicicil, 0);
-    const totSisa = list.reduce((s, r) => s + r.sisa, 0);
+    return {
+        taFilter, list,
+        totKewajiban: list.reduce((s, r) => s + r.totalKewajiban, 0),
+        totDicicil: list.reduce((s, r) => s + r.sudahDicicil, 0),
+        totSisa: list.reduce((s, r) => s + r.sisa, 0),
+        totJmlCicilan: list.reduce((s, r) => s + r.jmlCicilan, 0),
+        totJmlPotongan: list.reduce((s, r) => s + r.jmlPotongan, 0)
+    };
+}
+
+function populateRekapCicilanTaDropdown() {
+    const sel = document.getElementById('filterRekapCicilanTa');
+    if (!sel) return;
+    const taSet = new Set();
+    dataCicilan.forEach(c => { if (c.status !== 'DIBATALKAN') { const ta = getTahunAjaran(c.tanggal); if (ta && ta !== 'Unknown') taSet.add(ta); } });
+    let optionsHtml = '<option value="SEMUA">Semua Tahun Ajaran</option>';
+    Array.from(taSet).sort().forEach(ta => { optionsHtml += '<option value="' + escapeHtml(ta) + '">TA ' + escapeHtml(ta) + '</option>'; });
+    const cur = sel.value;
+    sel.innerHTML = optionsHtml;
+    sel.value = (cur === 'SEMUA' || taSet.has(cur)) ? cur : 'SEMUA';
+}
+
+function exportRekapCicilanExcel() {
+    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
+    const rk = buildRekapCicilanPerSdm();
+    if (!rk.list.length) { showToast('Tidak ada data rekap untuk diexport pada filter TA ini.', 'warning'); return; }
+    try {
+        const wb = XLSX.utils.book_new();
+        const pctOf = (num, den) => den > 0 ? Math.min(100, Math.round((num / den) * 100)) : 0;
+        const rows = rk.list.map((r, i) => ({ 'No': i + 1, 'NAMA PEGAWAI (SDM)': r.nama, 'JML CICILAN': r.jmlCicilan, 'JML POTONGAN': r.jmlPotongan, 'TOTAL KEWAJIBAN': r.totalKewajiban, 'SUDAH DICICIL': r.sudahDicicil, 'SISA TAGIHAN': r.sisa, 'PROGRES (%)': pctOf(r.sudahDicicil, r.totalKewajiban) }));
+        rows.push({ 'No': '', 'NAMA PEGAWAI (SDM)': 'TOTAL KESELURUHAN', 'JML CICILAN': rk.totJmlCicilan, 'JML POTONGAN': rk.totJmlPotongan, 'TOTAL KEWAJIBAN': rk.totKewajiban, 'SUDAH DICICIL': rk.totDicicil, 'SISA TAGIHAN': rk.totSisa, 'PROGRES (%)': pctOf(rk.totDicicil, rk.totKewajiban) });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 12 }, { wch: 13 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Rekap per SDM');
+        // Sheet 2: rincian kesepakatan cicilan pada filter tahun ajaran yang sama
+        const detail = dataCicilan
+            .filter(c => c.status !== 'DIBATALKAN' && (rk.taFilter === 'SEMUA' || getTahunAjaran(c.tanggal) === rk.taFilter))
+            .sort((a, b) => String(a.pegawai).localeCompare(String(b.pegawai), 'id'));
+        if (detail.length) {
+            const rowsDetail = detail.map((c, i) => ({ 'No': i + 1, 'NAMA PEGAWAI': c.pegawai, 'TANGGAL MULAI': parseExcelDate(c.tanggal), 'TA': getTahunAjaran(c.tanggal), 'TOTAL KEWAJIBAN': Number(c.total_kewajiban) || 0, 'SUDAH DICICIL': Math.max(0, getTotalDibayarCicilan(c)), 'SISA KEWAJIBAN': Number(c.sisa_kewajiban) || 0, 'SKEMA': c.skema, 'METODE': c.metode, 'STATUS': c.status, 'JML POTONGAN': (c.riwayat ? c.riwayat.length : 0), 'KETERANGAN': c.keterangan || '' }));
+            const wsDetail = XLSX.utils.json_to_sheet(rowsDetail);
+            wsDetail['!cols'] = [{ wch: 5 }, { wch: 26 }, { wch: 14 }, { wch: 11 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 32 }];
+            XLSX.utils.book_append_sheet(wb, wsDetail, 'Rincian Kesepakatan');
+        }
+        const namaFile = 'Rekap_Cicilan_per_SDM' + (rk.taFilter === 'SEMUA' ? '_Semua_TA' : '_TA_' + rk.taFilter.replace('/', '-')) + '.xlsx';
+        XLSX.writeFile(wb, namaFile);
+        showToast('Rekap cicilan per SDM berhasil diexport: ' + namaFile);
+    } catch (err) {
+        console.error('exportRekapCicilanExcel error:', err);
+        showToast('Gagal export Excel: ' + err.message, 'danger');
+    }
+}
+
+function renderRekapCicilanPerSdm() {
+    const bodyEl = document.getElementById('rekapCicilanBody');
+    if (!bodyEl) return;
+    populateRekapCicilanTaDropdown();
+    const rk = buildRekapCicilanPerSdm();
+    const taFilter = rk.taFilter, list = rk.list;
+    const totKewajiban = rk.totKewajiban, totDicicil = rk.totDicicil, totSisa = rk.totSisa;
     const statsEl = document.getElementById('rekapCicilanStats');
     if (statsEl) statsEl.innerHTML =
         '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Kewajiban Cicilan</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(totKewajiban) + '</h5></div></div>' +
         '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100 border-success"><div class="small text-muted">Total Sudah Dicicil (Semua SDM)</div><h5 class="fw-bold text-success mb-0">' + formatRupiah(totDicicil) + '</h5></div></div>' +
         '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Sisa Tagihan</div><h5 class="fw-bold text-danger mb-0">' + formatRupiah(totSisa) + '</h5></div></div>';
+    const subEl = document.getElementById('rekapCicilanSub');
+    if (subEl) subEl.innerHTML = 'Jumlah <strong>sudah dicicil</strong> dan total potongan untuk masing-masing SDM' + (taFilter === 'SEMUA' ? ' (semua tahun ajaran)' : ' — filter <strong>TA ' + escapeHtml(taFilter) + '</strong>') + '. Cicilan berstatus <em>DIBATALKAN</em> tidak diikutkan.';
     let html = '';
     list.forEach((r, idx) => {
         let pct = r.totalKewajiban > 0 ? Math.min(100, Math.round((r.sudahDicicil / r.totalKewajiban) * 100)) : 0;
