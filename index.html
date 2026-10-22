@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Rekap Invoice & Plafon Kesehatan RS Edelweiss & Klinik Pindad - NFBS Lembang</title>
+    <title>Sistem Rekap Invoice & Plafon Kesehatan RS Edelweiss - NFBS Lembang</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -61,7 +61,7 @@
         <div class="text-center text-white mb-4">
             <i class="fa-solid fa-hospital-user fa-3x text-warning mb-3"></i>
             <h3 class="fw-bold mb-1">Sistem Rekap Invoice &amp; Plafon Kesehatan</h3>
-            <p class="text-white-50 mb-0">RS Edelweiss &amp; Klinik Pindad — NFBS Lembang (Cloud Sync)</p>
+            <p class="text-white-50 mb-0">RS Edelweiss — Pindad — NFBS Lembang (Cloud Sync)</p>
         </div>
         <div class="row g-3">
             <div class="col-md-6">
@@ -89,13 +89,13 @@
                 </div>
             </div>
         </div>
-        <p class="text-center text-white-50 small mt-3 mb-0"><i class="fa-solid fa-shield-halved me-1"></i> PIN default Pengelola: <code class="text-warning">1234</code> — segera ganti melalui tombol <em>"Ganti PIN"</em> di menu setelah masuk.</p>
+        <p class="text-center text-white-50 small mt-3 mb-0"><i class="fa-solid fa-shield-halved me-1"></i> PIN default Pengelola: <code class="text-warning">****</code> — segera ganti melalui tombol <em>"Ganti PIN"</em> di menu setelah masuk.</p>
     </div>
 </div>
 
 <div class="mobile-header position-fixed top-0 start-0 w-100 bg-success text-white p-2 d-md-none align-items-center justify-content-between shadow" style="z-index: 1030;">
     <button class="btn btn-sm btn-outline-light" onclick="toggleSidebar()"><i class="fa-solid fa-bars fa-lg"></i></button>
-    <span class="fw-bold">Edelweiss Capital</span>
+    <span class="fw-bold">Edelweiss - Pindad Capital</span>
     <span style="width: 32px;"></span>
 </div>
 
@@ -104,7 +104,7 @@
 <nav id="sidebar" class="sidebar p-3 d-md-block">
     <div class="text-center mb-4 mt-3">
         <i class="fa-solid fa-hospital-user fa-3x text-warning mb-2"></i>
-        <h5 class="fw-bold">Edelweiss Capital</h5>
+        <h5 class="fw-bold">Edelweiss - Pindad Capital</h5>
         <p class="small text-white-50 mb-0">NFBS Lembang (Cloud Sync)</p>
         <div id="cloudStatusSidebar" class="mt-2">
             <span class="cloud-status syncing"><span class="pulse-dot"></span> Menyambungkan...</span>
@@ -117,7 +117,8 @@
         <li class="nav-item"><a class="nav-link" data-tab="database" onclick="switchTab('database')"><i class="fa-solid fa-database me-2"></i> Database Rujukan</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="plafon" onclick="switchTab('plafon')"><i class="fa-solid fa-shield-heart me-2"></i> Plafon Kesehatan SDM</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="cicilan" onclick="switchTab('cicilan')"><i class="fa-solid fa-hand-holding-dollar me-2"></i> Cicilan & Potongan</a></li>
-        <li class="nav-item"><a class="nav-link" data-tab="mitra" onclick="switchTab('mitra')"><i class="fa-solid fa-handshake me-2"></i> Pembayaran Mitra</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="mitra" onclick="switchTab('mitra')"><i class="fa-solid fa-handshake me-2"></i> Tagihan Mitra</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="bayarmitra" onclick="switchTab('bayarmitra')"><i class="fa-solid fa-money-bill-transfer me-2"></i> Pembayaran Mitra</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="bidang" onclick="switchTab('bidang')"><i class="fa-solid fa-building-columns me-2"></i> Rekap per Bidang</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="sdm" onclick="switchTab('sdm')"><i class="fa-solid fa-users me-2"></i> Rekap per SDM</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="simulasi" onclick="switchTab('simulasi')"><i class="fa-solid fa-calculator me-2"></i> Simulasi Invoice</a></li>
@@ -274,13 +275,23 @@
                     <button class="btn btn-success btn-sm needs-write" onclick="openModalDatabase('add')"><i class="fa-solid fa-plus me-1"></i> Tambah Data</button>
                 </div>
             </div>
-            <div class="alert alert-info py-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> <strong>Info:</strong> Saat data rujukan disimpan, sistem otomatis mengurangi jatah plafon kesehatan pegawai sesuai Tahun Ajaran tanggal rujukan. Data yang sama persis (duplikat) akan otomatis diabaikan.</div>
-            <div class="mb-3"><input type="text" id="searchDatabase" class="form-control" placeholder="Cari nama pegawai, pasien, atau no invoice..." onkeyup="filterDatabase()"></div>
+            <div class="alert alert-info py-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> <strong>Info:</strong> Saat data rujukan disimpan, sistem otomatis mengurangi jatah plafon kesehatan pegawai sesuai Tahun Ajaran tanggal rujukan. Data yang sama persis (duplikat) akan otomatis diabaikan. Gunakan kolom <strong>Rujukan Ke (Mitra)</strong> untuk menandai rujukan yang ditagihkan ke RS Edelweiss / Klinik Pindad agar sinkron dengan menu Tagihan Mitra.</div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-8"><input type="text" id="searchDatabase" class="form-control" placeholder="Cari nama pegawai, pasien, atau no invoice..." onkeyup="filterDatabase()"></div>
+                <div class="col-md-4"><select id="filterRujukanPihak" class="form-select" onchange="filterDatabase();" title="Filter rujukan berdasarkan mitra tujuan"><option value="SEMUA">Semua Mitra Tujuan</option><option value="RS EDELWEIS">RS Edelweiss</option><option value="KLINIK PINDAD">Klinik Pindad</option><option value="TANPA_MITRA">Tanpa Keterangan Mitra</option></select></div>
+            </div>
             <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
                 <table class="table table-striped table-hover align-middle small" id="tableDatabase">
-                    <thead class="table-success sticky-top"><tr><th>No</th><th>Pegawai</th><th>Bidang</th><th>Pasien</th><th>Poli</th><th>Tgl</th><th>TA</th><th>No Invoice</th><th>Tagihan NF</th><th>Sub Total</th><th>Cover Yayasan</th><th>Biaya Pribadi</th><th class="text-center">Aksi</th></tr></thead>
+                    <thead class="table-success sticky-top"><tr><th>No</th><th>Pegawai</th><th>Bidang</th><th>Pasien</th><th>Poli</th><th>Mitra Tujuan</th><th>Tgl</th><th>TA</th><th>No Invoice</th><th>Tagihan NF</th><th>Sub Total</th><th>Cover Yayasan</th><th>Biaya Pribadi</th><th class="text-center">Aksi</th></tr></thead>
                     <tbody id="dbTableBody"></tbody>
                 </table>
+            </div>
+            <div class="card bg-light border mt-3" id="sinkronMitraCard">
+                <div class="card-body p-3">
+                    <h6 class="fw-bold text-success mb-1"><i class="fa-solid fa-arrows-rotate me-1"></i> Sinkronisasi Rujukan dengan Tagihan Mitra</h6>
+                    <p class="small text-muted mb-2">Perbandingan rujukan (menurut keterangan <strong>Rujukan Ke</strong>) dengan tagihan yang tercatat di menu <em>Tagihan Mitra</em>, mengikuti filter Tahun Ajaran aktif. Isi keterangan mitra pada setiap rujukan agar rekap ini akurat.</p>
+                    <div class="row g-2" id="sinkronMitraBody"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -338,7 +349,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h5 class="fw-bold m-0"><i class="fa-solid fa-hand-holding-dollar text-success me-2"></i> Manajemen Cicilan & Potongan Pegawai</h5>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-success btn-sm" onclick="exportCicilanUtamaExcel()" title="Export tabel cicilan utama ke file Excel (mengikuti kata kunci pencarian)"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportCicilanTableExcel()" title="Export tabel utama cicilan ke Excel (mengikuti kata kunci pencarian)"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
                     <button class="btn btn-success btn-sm needs-write" onclick="openModalCicilan()"><i class="fa-solid fa-plus me-1"></i> Buat Kesepakatan Cicilan</button>
                 </div>
             </div>
@@ -358,11 +369,13 @@
 
         <div class="table-container mt-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
-                <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-column text-success me-2"></i> Grafik Tren Pembayaran Cicilan per Bulan</h5>
-                <div class="input-group input-group-sm" style="width: 210px;"><span class="input-group-text bg-success text-white">Periode</span><select id="filterTrenCicilanPeriode" class="form-select form-select-sm fw-bold text-success" onchange="renderGrafikTrenCicilan()"><option value="6">6 Bulan Terakhir</option><option value="12" selected>12 Bulan Terakhir</option><option value="24">24 Bulan Terakhir</option><option value="SEMUA">Semua Bulan</option></select></div>
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-line text-success me-2"></i> Grafik Tren Pembayaran per Bulan</h5>
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="small text-muted">Total potongan cicilan yang diterima tiap bulan &amp; akumulasi (cicilan DIBATALKAN dikecualikan)</span>
+                    <div class="input-group input-group-sm" style="width: 210px;"><span class="input-group-text bg-success text-white">TA</span><select id="filterTrenCicilanTa" class="form-select form-select-sm fw-bold text-success" onchange="renderTrenBayarCicilanChart()"><option value="SEMUA">Semua Tahun Ajaran</option></select></div>
+                </div>
             </div>
-            <p class="small text-muted mb-2" id="trenCicilanInfo">Tren total potongan/pembayaran cicilan per bulan berdasarkan riwayat pembayaran.</p>
-            <canvas id="grafikTrenCicilanChart" height="150"></canvas>
+            <canvas id="trenBayarCicilanChart" height="105"></canvas>
         </div>
 
         <div class="table-container mt-3">
@@ -383,27 +396,64 @@
 
     <div id="tab-mitra" class="content-section d-none">
         <div class="table-container">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="fw-bold m-0"><i class="fa-solid fa-handshake text-success me-2"></i> Riwayat Pembayaran Tagihan ke Mitra</h5>
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-handshake text-success me-2"></i> Tagihan &amp; Pembayaran Mitra NF</h5>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-success btn-sm" onclick="exportPembayaranMitraExcel()" title="Export riwayat pembayaran mitra ke file Excel"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
-                    <button class="btn btn-success btn-sm needs-write" onclick="openModalPembayaranMitra()"><i class="fa-solid fa-plus me-1"></i> Catat Pembayaran</button>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportMitraExcel()" title="Export tagihan mitra &amp; riwayat pembayaran ke Excel"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
+                    <button class="btn btn-success btn-sm needs-write" onclick="openModalMitra()"><i class="fa-solid fa-plus me-1"></i> Catat Tagihan Mitra</button>
                 </div>
             </div>
-            <p class="small text-muted mt-2 mb-0">Catat dan pantau riwayat pembayaran tagihan kesehatan ke mitra layanan NF: <strong>RS Edelweiss</strong> dan <strong>Klinik Pindad</strong>. Data tersimpan di cloud bila tabel <code>pembayaran_mitra</code> tersedia di Supabase; jika belum, otomatis tersimpan lokal di browser ini.</p>
-            <div class="row g-2 mb-3 mt-1" id="pmStats"></div>
+            <p class="small text-muted mb-3">Riwayat tagihan dari pihak mitra layanan kesehatan NF — <strong>RS Edelweiss</strong> dan <strong>Klinik Pindad</strong> — beserta catatan pembayarannya. Tagihan cicilan SDM terpisah di menu <em>Cicilan &amp; Potongan</em>.</p>
+            <div class="row g-2 mb-3" id="mitraStats"></div>
             <div class="row g-2 mb-3">
-                <div class="col-md-3"><select id="filterPmMitra" class="form-select form-select-sm" onchange="renderPembayaranMitra()"><option value="SEMUA">Semua Mitra</option><option value="RS Edelweiss">RS Edelweiss</option><option value="Klinik Pindad">Klinik Pindad</option></select></div>
-                <div class="col-md-3"><div class="input-group input-group-sm"><span class="input-group-text bg-success text-white">TA</span><select id="filterPmTa" class="form-select form-select-sm fw-bold text-success" onchange="renderPembayaranMitra()"><option value="SEMUA">Semua Tahun Ajaran</option></select></div></div>
-                <div class="col-md-6"><input type="text" id="searchPm" class="form-control form-control-sm" placeholder="Cari no. invoice / uraian / mitra..." onkeyup="renderPembayaranMitra();"></div>
+                <div class="col-md-3"><select id="filterMitraPihak" class="form-select form-select-sm" onchange="currentPageMitra=1; renderMitraTable();"><option value="SEMUA">Semua Pihak (Mitra)</option><option value="RS EDELWEIS">RS Edelweiss</option><option value="KLINIK PINDAD">Klinik Pindad</option></select></div>
+                <div class="col-md-3"><select id="filterMitraStatus" class="form-select form-select-sm" onchange="currentPageMitra=1; renderMitraTable();"><option value="SEMUA">Semua Status</option><option value="BELUM LUNAS">Belum Lunas</option><option value="LUNAS">Lunas</option></select></div>
+                <div class="col-md-4"><input type="text" id="searchMitra" class="form-control form-control-sm" placeholder="Cari invoice / keterangan / pihak..." onkeyup="currentPageMitra=1; renderMitraTable();"></div>
+                <div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="mitraPageSize" class="form-select form-select-sm" onchange="currentPageMitra=1; renderMitraTable();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
             </div>
+            <div class="table-responsive" style="min-height: 250px;">
+                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Pihak / Mitra</th><th>Invoice / Keterangan</th><th>Tgl Tagihan</th><th>Jatuh Tempo</th><th>Total Tagihan</th><th>Sudah Dibayar</th><th>Sisa Tagihan</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="mitraTableBody"></tbody></table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="small text-muted" id="mitraPaginationInfo">Menampilkan data...</div>
+                <ul class="pagination pagination-sm mb-0" id="mitraPaginationNav"></ul>
+            </div>
+        </div>
+        <div class="table-container mt-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
-                <h6 class="fw-bold mb-0 text-muted"><i class="fa-solid fa-chart-column me-1"></i> Tren Pembayaran per Mitra (per Bulan)</h6>
-                <div class="input-group input-group-sm" style="width: 210px;"><span class="input-group-text bg-success text-white">Periode</span><select id="filterPmPeriode" class="form-select form-select-sm fw-bold text-success" onchange="renderPembayaranMitra()"><option value="6">6 Bulan Terakhir</option><option value="12" selected>12 Bulan Terakhir</option><option value="24">24 Bulan Terakhir</option><option value="SEMUA">Semua Bulan</option></select></div>
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-chart-line text-success me-2"></i> Tren Pembayaran Tagihan per Bulan</h5>
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="small text-muted">Pembayaran ke mitra per bulan, dipecah per pihak</span>
+                    <div class="input-group input-group-sm" style="width: 210px;"><span class="input-group-text bg-success text-white">TA</span><select id="filterTrenMitraTa" class="form-select form-select-sm fw-bold text-success" onchange="renderTrenBayarMitraChart()"><option value="SEMUA">Semua Tahun Ajaran</option></select></div>
+                </div>
             </div>
-            <canvas id="grafikPembayaranMitraChart" height="120" class="mb-3"></canvas>
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle"><thead class="table-success"><tr><th>No</th><th>Tanggal</th><th>Mitra</th><th>No. Invoice / Referensi</th><th>Uraian</th><th>Metode</th><th>Jumlah Pembayaran</th><th class="text-center">Aksi</th></tr></thead><tbody id="pmTableBody"></tbody><tfoot id="pmTableFoot"></tfoot></table>
+            <canvas id="trenBayarMitraChart" height="105"></canvas>
+        </div>
+    </div>
+
+    <div id="tab-bayarmitra" class="content-section d-none">
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-money-bill-transfer text-primary me-2"></i> Pembayaran NF ke Mitra</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success btn-sm" onclick="exportPembayaranMitraExcel()" title="Export daftar pembayaran ke Excel"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
+                    <button class="btn btn-primary btn-sm needs-write" onclick="openModalPmb()"><i class="fa-solid fa-money-bill-transfer me-1"></i> Catat Pembayaran ke Mitra</button>
+                </div>
+            </div>
+            <p class="small text-muted mb-3">Buku kas pembayaran <strong>dari NF ke pihak mitra</strong> &mdash; <strong>RS Edelweiss</strong> dan <strong>Klinik Pindad</strong>: catat pembayaran (DP / cicilan / pelunasan), edit, hapus, dan sisa tagihan terupdate otomatis. Pencatatan tagihannya tersedia di menu <em>Tagihan Mitra</em>.</p>
+            <div class="row g-2 mb-3" id="pmbStats"></div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-3"><select id="filterPmbPihak" class="form-select form-select-sm" onchange="currentPagePmb=1; renderPembayaranMitra();"><option value="SEMUA">Semua Pihak (Mitra)</option><option value="RS EDELWEIS">RS Edelweiss</option><option value="KLINIK PINDAD">Klinik Pindad</option></select></div>
+                <div class="col-md-3"><select id="filterPmbTa" class="form-select form-select-sm" onchange="currentPagePmb=1; renderPembayaranMitra();"><option value="SEMUA">Semua Tahun Ajaran</option></select></div>
+                <div class="col-md-4"><input type="text" id="searchPmb" class="form-control form-control-sm" placeholder="Cari invoice / keterangan / metode..." onkeyup="currentPagePmb=1; renderPembayaranMitra();"></div>
+                <div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text">Tampil</span><select id="pmbPageSize" class="form-select form-select-sm" onchange="currentPagePmb=1; renderPembayaranMitra();"><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="999999">All</option></select></div></div>
+            </div>
+            <div class="table-responsive" style="min-height: 250px;">
+                <table class="table table-bordered table-hover align-middle"><thead class="table-primary"><tr><th>No</th><th>Tanggal Bayar</th><th>Pihak / Mitra</th><th>Tagihan Terkait</th><th>Nominal</th><th>Metode</th><th>Keterangan</th><th>Sisa Tagihan</th><th class="text-center">TA</th><th class="text-center">Aksi</th></tr></thead><tbody id="pmbTableBody"></tbody></table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="small text-muted" id="pmbPaginationInfo">Menampilkan data...</div>
+                <ul class="pagination pagination-sm mb-0" id="pmbPaginationNav"></ul>
             </div>
         </div>
     </div>
@@ -484,8 +534,17 @@
                         <div class="col-md-4"><label class="form-label fw-bold">Tanggal Rujukan</label><input type="date" id="dbTanggal" class="form-control" required onchange="checkPlafonAvailability()"></div>
                         <div class="col-md-4"><label class="form-label fw-bold">No Invoice</label><input type="text" id="dbInvoice" class="form-control" required></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Tagihan NF (Rp)</label><input type="number" id="dbTagihan" class="form-control" required oninput="calcSubTotal()"></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Diskon / Potongan (Rp)</label><input type="number" id="dbDiskon" class="form-control" value="0" oninput="calcSubTotalManual()"></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Sub Total (Rp)</label><input type="number" id="dbSubtotal" class="form-control" readonly></div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Rujukan Ke (Mitra)</label>
+                            <select id="dbPihak" class="form-select">
+                                <option value="">- Tidak ke mitra -</option>
+                                <option value="RS EDELWEIS">RS Edelweiss</option>
+                                <option value="KLINIK PINDAD">Klinik Pindad</option>
+                            </select>
+                            <small class="text-muted">Sinkron dengan Tagihan Mitra.</small>
+                        </div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Diskon / Potongan (Rp)</label><input type="number" id="dbDiskon" class="form-control" value="0" oninput="calcSubTotalManual()"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Sub Total (Rp)</label><input type="number" id="dbSubtotal" class="form-control" readonly></div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Cover Yayasan (Rp)</label>
                             <input type="number" id="dbCover" class="form-control" required oninput="calcBiayaPribadi(); checkPlafonAvailability();">
@@ -621,6 +680,86 @@
     </div>
 </div>
 
+<!-- MODAL TAGIHAN MITRA -->
+<div class="modal fade" id="modalMitra" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalMitraTitle">Catat Tagihan Mitra Baru</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="formMitra" onsubmit="saveMitra(event)">
+                    <input type="hidden" id="mitraEditId">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Pihak / Mitra <span class="text-danger">*</span></label><select id="mitraPihak" class="form-select" required></select><small class="text-muted">Mitra layanan kesehatan NF: RS Edelweiss &amp; Klinik Pindad.</small></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">No Invoice / Referensi</label><input type="text" id="mitraInvoice" class="form-control" placeholder="Misal: INV/EDEL/2026/001"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Tanggal Tagihan <span class="text-danger">*</span></label><input type="date" id="mitraTanggal" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Jatuh Tempo</label><input type="date" id="mitraJatuhTempo" class="form-control"><small class="text-muted">Opsional — ditandai merah bila sudah lewat tempo &amp; belum lunas.</small></div>
+                        <div class="col-md-12"><label class="form-label fw-bold">Total Tagihan (Rp) <span class="text-danger">*</span></label><input type="number" id="mitraTotal" class="form-control" required min="1"></div>
+                        <div class="col-md-12"><label class="form-label fw-bold">Keterangan / Peruntukan</label><input type="text" id="mitraKeterangan" class="form-control" placeholder="Misal: Tagihan layanan kesehatan SDM periode Januari 2026"></div>
+                    </div>
+                    <div id="infoMitraTotal" class="small text-muted mt-2"></div>
+                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success needs-write" id="btnMitraSubmit"><i class="fa-solid fa-save me-1"></i> Simpan Tagihan</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TAGIHAN MITRA DETAIL & BAYAR -->
+<div class="modal fade" id="modalMitraDetail" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white"><h5 class="modal-title" id="modalMitraDetailTitle">Detail Tagihan Mitra & Riwayat Pembayaran</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row mb-3" id="mitraDetailInfo"></div>
+                <hr>
+                <h6 class="fw-bold text-primary mb-3 needs-write" id="bayarMitraTitle"><i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran ke Mitra</h6>
+                <form class="row g-2 mb-4 needs-write" onsubmit="bayarMitra(event)">
+                    <input type="hidden" id="bayarMitraTagihanId">
+                    <input type="hidden" id="bayarMitraEditId">
+                    <div class="col-md-3"><input type="date" id="bayarMitraTanggal" class="form-control form-control-sm" required></div>
+                    <div class="col-md-3"><input type="number" id="bayarMitraJumlah" class="form-control form-control-sm" placeholder="Nominal bayar (Rp)" required></div>
+                    <div class="col-md-3"><select id="bayarMitraMetode" class="form-select form-select-sm"><option value="TRANSFER BANK">Transfer Bank</option><option value="TUNAI">Tunai</option><option value="CEK/GIRO">Cek / Giro</option><option value="LAINNYA">Lainnya</option></select></div>
+                    <div class="col-md-2"><input type="text" id="bayarMitraKet" class="form-control form-control-sm" placeholder="Ket. (opsional)"></div>
+                    <div class="col-md-1 d-flex gap-1">
+                        <button type="submit" class="btn btn-primary btn-sm flex-fill" id="btnMitraBayarSubmit" title="Catat Pembayaran"><i class="fa-solid fa-check"></i></button>
+                        <button type="button" class="btn btn-secondary btn-sm flex-fill" id="btnMitraBayarCancelEdit" style="display:none;" onclick="resetMitraBayarForm()" title="Batal Edit"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </form>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small"><thead class="table-primary"><tr><th>No</th><th>Tanggal</th><th>Nominal</th><th>Metode</th><th>Keterangan</th><th class="text-center">Aksi</th></tr></thead><tbody id="mitraRiwayatTableBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CATAT PEMBAYARAN KE MITRA (MENU PEMBAYARAN MITRA) -->
+<div class="modal fade" id="modalPmbMitra" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white"><h5 class="modal-title" id="modalPmbTitle">Catat Pembayaran NF ke Mitra</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <form id="formPmb" onsubmit="savePmb(event)">
+                <input type="hidden" id="pmbEditId">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label fw-bold">Pihak / Mitra <span class="text-danger">*</span></label><select id="pmbPihak" class="form-select" required onchange="onPmbPihakChange()"></select><small class="text-muted">Mitra layanan kesehatan NF: RS Edelweiss &amp; Klinik Pindad.</small></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Tagihan Terkait <span class="text-danger">*</span></label><select id="pmbTagihan" class="form-select" required onchange="onPmbTagihanChange()"></select><small class="text-muted">Pembayaran otomatis mengurangi sisa tagihan terpilih.</small></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Tanggal Bayar <span class="text-danger">*</span></label><input type="date" id="pmbTanggal" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Nominal Bayar (Rp) <span class="text-danger">*</span></label><input type="number" id="pmbJumlah" class="form-control" required min="1" placeholder="Misal: 1500000"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Metode Pembayaran</label><select id="pmbMetode" class="form-select"><option value="TRANSFER BANK">Transfer Bank</option><option value="TUNAI">Tunai</option><option value="CEK/GIRO">Cek / Giro</option><option value="LAINNYA">Lainnya</option></select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Keterangan</label><input type="text" id="pmbKet" class="form-control" placeholder="Misal: DP 50% / Pelunasan invoice..."></div>
+                    </div>
+                    <div id="pmbInfo" class="small mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary needs-write" id="btnPmbSubmit"><i class="fa-solid fa-money-bill-transfer me-1"></i> Simpan Pembayaran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL VIEW -->
 <div class="modal fade" id="modalView" tabindex="-1">
     <div class="modal-dialog">
@@ -700,29 +839,6 @@
     </div>
 </div>
 
-<!-- MODAL PEMBAYARAN MITRA (RS EDELWEISS & KLINIK PINDAD) -->
-<div class="modal fade" id="modalPembayaranMitra" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white"><h5 class="modal-title" id="modalPembayaranMitraTitle">Catat Pembayaran Tagihan ke Mitra</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body">
-                <form id="formPembayaranMitra" onsubmit="savePembayaranMitra(event)">
-                    <input type="hidden" id="pmEditId">
-                    <div class="row g-3">
-                        <div class="col-md-6"><label class="form-label fw-bold">Tanggal Pembayaran</label><input type="date" id="pmTanggal" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Mitra (Rumah Sakit / Klinik)</label><select id="pmMitra" class="form-select" required><option value="RS Edelweiss">RS Edelweiss</option><option value="Klinik Pindad">Klinik Pindad</option></select></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">No. Invoice / Referensi</label><input type="text" id="pmNoRef" class="form-control" placeholder="cth: INV-EDEL-2026-001"></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Metode Pembayaran</label><select id="pmMetode" class="form-select"><option>TRANSFER BANK</option><option>TUNAI</option><option>POTONG INVOICE BERIKUTNYA</option><option>LAINNYA</option></select></div>
-                        <div class="col-md-12"><label class="form-label fw-bold">Jumlah Pembayaran (Rp)</label><input type="number" id="pmJumlah" class="form-control" required min="1" step="any" placeholder="cth: 5000000"></div>
-                        <div class="col-md-12"><label class="form-label fw-bold">Uraian / Keterangan</label><textarea id="pmUraian" class="form-control" rows="2" placeholder="cth: Pembayaran invoice tagihan pasien NF periode Januari 2026"></textarea></div>
-                    </div>
-                    <div class="mt-4 text-end"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success needs-write" id="btnPmSubmit"><i class="fa-solid fa-save me-1"></i> Simpan Pembayaran</button></div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -739,20 +855,17 @@ let dataMasterPegawai = [];
 let dataDatabase = [];
 let dataPlafon = {};
 let dataCicilan = [];
-// ===== [BARU TASK 5] PEMBAYARAN MITRA (RS EDELWEISS & KLINIK PINDAD) =====
-let dataPembayaranMitra = [];
-let mitraCloudOk = null; // true: tabel pembayaran_mitra tersedia di Supabase; false: fallback localStorage
-const LS_MITRA_KEY = 'edel_pembayaran_mitra';
-const MITRA_LIST = ['RS Edelweiss', 'Klinik Pindad'];
-const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+let dataMitraTagihan = [];   // [BARU] Tagihan Mitra (RS Edelweiss & Klinik Pindad)
+let dataMitraRiwayat = [];   // [BARU] Riwayat pembayaran tagihan mitra
 
 let tahunAjaranChartInstance = null;
 let costRatioChartInstance = null;
 let fundingChartInstance = null;
 let debtChartInstance = null;
-let trenCicilanChartInstance = null;
-let pmChartInstance = null;
-let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, currentPageCicilan = 1;
+let trenBayarCicilanInstance = null;   // [BARU] Grafik tren pembayaran cicilan per bulan
+let trenBayarMitraInstance = null;     // [BARU] Grafik tren pembayaran tagihan mitra per bulan
+let currentPageSdm = 1, currentPageMasterPegawai = 1, currentPagePlafon = 1, currentPageCicilan = 1, currentPageMitra = 1;
+let currentPagePmb = 1;      // [BARU] halaman tabel Pembayaran Mitra (menu tersendiri)
 let pendingImportData = null;
 let supabaseChannels = [];
 let mpSpouseFilteredData = [];
@@ -925,6 +1038,19 @@ async function fetchAll(table, orders = []) {
     return all;
 }
 
+// [BARU] Versi aman fetchAll untuk tabel baru (menu Tagihan Mitra):
+// bila tabel belum dibuat di Supabase (SQL schema belum dijalankan),
+// aplikasi tetap berjalan normal dengan data kosong + peringatan sekali.
+async function fetchAllSafe(table, orders = []) {
+    try { return await fetchAll(table, orders); }
+    catch (e) { window.__mitraTableMissing = true; console.warn('Tabel ' + table + ' belum tersedia di Supabase:', e.message); return []; }
+}
+function warnMitraTableMissing() {
+    if (window.__mitraTableMissing && !window.__mitraWarnShown) {
+        window.__mitraWarnShown = true;
+        showToast('Tabel "tagihan_mitra" belum ada di Supabase. Jalankan script schema_supabase.sql di Supabase SQL Editor untuk mengaktifkan menu Tagihan Mitra.', 'warning');
+    }
+}
 // ===== IDENTITAS PEGAWAI DI PLAFON: NAMA + BIDANG (untuk nama kembar) =====
 // Untuk nama yang UNIK, kunci tetap hanya NAMA (perilaku lama tidak berubah).
 // Untuk nama yang KEMBAR (beberapa pegawai/plafon dengan nama sama, bidang beda), kunci = NAMA||BIDANG.
@@ -1046,6 +1172,16 @@ function parseExcelDate(serial) {
     return String(serial);
 }
 
+// ===== [BARU] URUTAN RIWAYAT PEMBAYARAN (TANGGAL TERLAMA -> TERBARU) =====
+// Dipakai tabel riwayat di Detail Cicilan per SDM & Detail Tagihan Mitra.
+// Kunci urut = parseExcelDate(tanggal) (hasilnya selalu YYYY-MM-DD sehingga
+// perbandingan string = perbandingan kronologis); tanggal kosong paling akhir.
+function urutkanRiwayatTanggalAsc(list) {
+    return (list || []).slice().sort((a, b) =>
+        (a.tanggal ? parseExcelDate(a.tanggal) : '9999-12-31')
+            .localeCompare(b.tanggal ? parseExcelDate(b.tanggal) : '9999-12-31'));
+}
+
 function cleanPegawaiName(rawName) {
     if (!rawName) return "";
     let name = String(rawName).trim().toUpperCase();
@@ -1121,13 +1257,14 @@ function switchTab(tabId) {
     document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
     const activeLink = document.querySelector(`.sidebar .nav-link[data-tab="${tabId}"]`);
     if (activeLink) activeLink.classList.add('active');
-    const titles = { 'dashboard': 'Dashboard Eksekutif', 'master': 'Data Master', 'database': 'Database Rujukan & Invoice', 'plafon': 'Plafon Kesehatan SDM', 'cicilan': 'Cicilan & Potongan Pegawai', 'mitra': 'Pembayaran Mitra — RS Edelweiss & Klinik Pindad', 'bidang': 'Rekapitulasi per Bidang', 'sdm': 'Rekapitulasi per SDM', 'simulasi': 'Simulasi Kalkulator Invoice' };
+    const titles = { 'dashboard': 'Dashboard Eksekutif', 'master': 'Data Master', 'database': 'Database Rujukan & Invoice', 'plafon': 'Plafon Kesehatan SDM', 'cicilan': 'Cicilan & Potongan Pegawai', 'mitra': 'Tagihan Mitra (RS Edelweiss & Klinik Pindad)', 'bayarmitra': 'Pembayaran NF ke Mitra (RS Edelweiss & Klinik Pindad)', 'bidang': 'Rekapitulasi per Bidang', 'sdm': 'Rekapitulasi per SDM', 'simulasi': 'Simulasi Kalkulator Invoice' };
     document.getElementById('page-title').innerText = titles[tabId] || '';
     if (tabId === 'sdm') renderSdmTable();
     if (tabId === 'master') renderMasterAll();
     if (tabId === 'plafon') renderPlafonTable();
     if (tabId === 'cicilan') renderCicilanTable();
-    if (tabId === 'mitra') renderPembayaranMitra();
+    if (tabId === 'mitra') renderMitraTable();
+    if (tabId === 'bayarmitra') renderPembayaranMitra();
     if (tabId === 'simulasi') hitungSimulasi();
     if (window.innerWidth < 768) { document.getElementById('sidebar').classList.remove('show'); document.getElementById('sidebarBackdrop').classList.remove('show'); }
 }
@@ -1154,7 +1291,7 @@ function getFilteredData() { let selectedTa = document.getElementById('filterTah
 async function updateAllSystems() {
     populateTahunAjaranDropdown();
     let filtered = getFilteredData();
-    renderDatabaseTable(filtered); renderPlafonTable(); renderCicilanTable(); renderBidangTable(filtered); renderSdmTable(); renderPembayaranMitra(); updateDashboardSummary(filtered);
+    renderDatabaseTable(filtered); renderPlafonTable(); renderCicilanTable(); renderMitraTable(); renderPembayaranMitra(); renderBidangTable(filtered); renderSdmTable(); updateDashboardSummary(filtered);
     if (!document.getElementById('tab-master').classList.contains('d-none')) renderMasterAll();
     updateLastUpdate();
 }
@@ -1903,9 +2040,10 @@ function renderDatabaseTable(data) {
         let badgeKet = cover > 0 && pribadi > 0 ? `<span class="badge bg-success">Y: ${formatRupiah(cover)}</span> <span class="badge bg-warning text-dark">P: ${formatRupiah(pribadi)}</span>` : cover > 0 ? `<span class="badge bg-success">${formatRupiah(cover)}</span>` : `<span class="badge bg-warning text-dark">${formatRupiah(pribadi)}</span>`;
         let formattedDate = parseExcelDate(item.tanggal);
         let ta = getTahunAjaran(formattedDate);
-        html += `<tr><td>${index + 1}</td><td class="fw-bold">${escapeHtml(item.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(item.bidang || '-')}</span></td><td>${escapeHtml(item.pasien)}</td><td>${escapeHtml(item.poli)}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${escapeHtml(item.no_invoice)}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseById('${item.id}')" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalDatabase('edit', '${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteDatabaseById('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        html += `<tr><td>${index + 1}</td><td class="fw-bold">${escapeHtml(item.pegawai)}</td><td><span class="badge bg-secondary">${escapeHtml(item.bidang || '-')}</span></td><td>${escapeHtml(item.pasien)}</td><td>${escapeHtml(item.poli)}</td><td>${item.pihak ? pihakBadge(item.pihak) : '<span class="badge bg-light text-muted border">-</span>'}</td><td>${formattedDate}</td><td><span class="badge bg-primary">${ta}</span></td><td><code>${escapeHtml(item.no_invoice)}</code></td><td>${formatRupiah(item.tagihan)}</td><td class="fw-bold text-success">${formatRupiah(item.subtotal)}</td><td>${formatRupiah(cover)}</td><td class="text-danger">${formatRupiah(pribadi)}</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-info text-white" onclick="viewDatabaseById('${item.id}')" title="View"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalDatabase('edit', '${item.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="deleteDatabaseById('${item.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
-    document.getElementById('dbTableBody').innerHTML = html || `<tr><td colspan="13" class="text-center text-muted">Belum ada data rujukan</td></tr>`;
+    document.getElementById('dbTableBody').innerHTML = html || `<tr><td colspan="14" class="text-center text-muted">Belum ada data rujukan</td></tr>`;
+    renderSinkronMitra();
 }
 
 function openModalDatabase(mode, id = null) {
@@ -1941,6 +2079,7 @@ function openModalDatabase(mode, id = null) {
         document.getElementById('dbBidang').value = item.bidang || '';
         document.getElementById('dbPasien').value = item.pasien;
         document.getElementById('dbPoli').value = item.poli;
+        document.getElementById('dbPihak').value = item.pihak || '';
         document.getElementById('dbTanggal').value = parseExcelDate(item.tanggal);
         document.getElementById('dbInvoice').value = item.no_invoice;
         document.getElementById('dbTagihan').value = item.tagihan;
@@ -2099,6 +2238,7 @@ async function saveDatabase(event) {
     let invoice = document.getElementById('dbInvoice').value.trim().toUpperCase();
     let pasien = document.getElementById('dbPasien').value.toUpperCase();
     let poli = document.getElementById('dbPoli').value.toUpperCase();
+    let pihak = document.getElementById('dbPihak').value;
     let tanggal = document.getElementById('dbTanggal').value;
     
     if (!pegawai || !bidang || !invoice) { showToast('Semua field wajib diisi!', 'warning'); return; }
@@ -2122,6 +2262,7 @@ async function saveDatabase(event) {
         no_invoice: invoice, pegawai: normalizeName(pegawai), bidang,
         pasien: pasien,
         poli: poli,
+        pihak: pihak || null,
         tanggal: tanggal,
         tagihan: tagihanBruto, diskon: tagihanBruto - subtotal, subtotal: subtotal,
         cover_yayasan: cover, biaya_pribadi: pribadi
@@ -2160,12 +2301,51 @@ function viewDatabaseById(id) {
     let item = dataDatabase.find(x => x.id === id);
     if (!item) return;
     let info = getPlafonInfo(item.pegawai, getTahunAjaran(item.tanggal), item.bidang);
-    document.getElementById('viewContent').innerHTML = `<p><strong>Nama Pegawai:</strong> ${escapeHtml(item.pegawai)}</p><p><strong>Bidang:</strong> ${escapeHtml(item.bidang)}</p><p><strong>Nama Pasien:</strong> ${escapeHtml(item.pasien)}</p><p><strong>Poli / Ruang:</strong> ${escapeHtml(item.poli)}</p><p><strong>Tanggal Rujukan:</strong> ${parseExcelDate(item.tanggal)}</p><p><strong>Tahun Ajaran:</strong> ${getTahunAjaran(item.tanggal)}</p><p><strong>No Invoice:</strong> ${escapeHtml(item.no_invoice)}</p><p><strong>Tagihan NF:</strong> ${formatRupiah(item.tagihan)}</p><p><strong>Sub Total:</strong> ${formatRupiah(item.subtotal)}</p><p><strong>Cover Yayasan:</strong> ${formatRupiah(item.cover_yayasan || 0)}</p><p><strong>Biaya Pribadi (Hutang):</strong> ${formatRupiah(item.biaya_pribadi || 0)}</p><hr><p class="small"><strong>Info Plafon TA ${getTahunAjaran(item.tanggal)}:</strong><br>Total Plafon: ${formatRupiah(info.plafonTotal)}<br>Terpakai: ${formatRupiah(info.terpakai)}<br>Sisa: ${formatRupiah(info.sisa)}${info.spouseNama ? `<br>Pasangan: ${escapeHtml(info.spouseNama)}` : ''}</p>`;
+    document.getElementById('viewContent').innerHTML = `<p><strong>Nama Pegawai:</strong> ${escapeHtml(item.pegawai)}</p><p><strong>Bidang:</strong> ${escapeHtml(item.bidang)}</p><p><strong>Nama Pasien:</strong> ${escapeHtml(item.pasien)}</p><p><strong>Poli / Ruang:</strong> ${escapeHtml(item.poli)}</p><p><strong>Rujukan Ke (Mitra):</strong> ${item.pihak ? pihakLabel(item.pihak) : '-'}</p><p><strong>Tanggal Rujukan:</strong> ${parseExcelDate(item.tanggal)}</p><p><strong>Tahun Ajaran:</strong> ${getTahunAjaran(item.tanggal)}</p><p><strong>No Invoice:</strong> ${escapeHtml(item.no_invoice)}</p><p><strong>Tagihan NF:</strong> ${formatRupiah(item.tagihan)}</p><p><strong>Sub Total:</strong> ${formatRupiah(item.subtotal)}</p><p><strong>Cover Yayasan:</strong> ${formatRupiah(item.cover_yayasan || 0)}</p><p><strong>Biaya Pribadi (Hutang):</strong> ${formatRupiah(item.biaya_pribadi || 0)}</p><hr><p class="small"><strong>Info Plafon TA ${getTahunAjaran(item.tanggal)}:</strong><br>Total Plafon: ${formatRupiah(info.plafonTotal)}<br>Terpakai: ${formatRupiah(info.terpakai)}<br>Sisa: ${formatRupiah(info.sisa)}${info.spouseNama ? `<br>Pasangan: ${escapeHtml(info.spouseNama)}` : ''}</p>`;
     showModal('modalView');
 }
 
-function filterDatabase() { let keyword = document.getElementById('searchDatabase').value.toLowerCase(); let filtered = getFilteredData().filter(item => (String(item.pegawai || '').toLowerCase().includes(keyword)) || (String(item.pasien || '').toLowerCase().includes(keyword)) || (String(item.no_invoice || '').toLowerCase().includes(keyword))); renderDatabaseTable(filtered); }
-function downloadTemplateDatabase() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", NAMA_PASIEN: "CONTOH PASIEN", POLI_RUANG: "POLI ANAK", TANGGAL_RUJUKAN: "2026-01-01", NO_INVOICE: "INV001", TAGIHAN_NF: 1000000, DISKON: 0, SUB_TOTAL: 1000000, COVER_YAYASAN: 1000000, BIAYA_PRIBADI: 0}]); XLSX.utils.book_append_sheet(wb, ws, "Template Database"); XLSX.writeFile(wb, "Template_Import_Database_Rujukan.xlsx"); showToast('Template berhasil diunduh!'); }
+function filterDatabase() { let keyword = document.getElementById('searchDatabase').value.toLowerCase(); let pihakF = document.getElementById('filterRujukanPihak')?.value || 'SEMUA'; let filtered = getFilteredData().filter(item => { if (pihakF === 'TANPA_MITRA') return !item.pihak; if (pihakF !== 'SEMUA') return item.pihak === pihakF; return true; }).filter(item => (String(item.pegawai || '').toLowerCase().includes(keyword)) || (String(item.pasien || '').toLowerCase().includes(keyword)) || (String(item.no_invoice || '').toLowerCase().includes(keyword))); renderDatabaseTable(filtered); }
+
+// ===== [BARU - TASK 10] SINKRONISASI RUJUKAN <-> TAGIHAN MITRA =====
+// Bandingkan total rujukan (menurut keterangan "Rujukan Ke") dengan total
+// tagihan mitra yang tercatat, per pihak, mengikuti filter Tahun Ajaran aktif.
+function renderSinkronMitra() {
+    const body = document.getElementById('sinkronMitraBody');
+    if (!body) return;
+    const globalTa = document.getElementById('filterTahunAjaran')?.value || 'SEMUA';
+    const srcRjk = globalTa === 'SEMUA' ? dataDatabase : dataDatabase.filter(item => getTahunAjaran(item.tanggal) === globalTa);
+    const srcTgh = globalTa === 'SEMUA' ? dataMitraTagihan : dataMitraTagihan.filter(t => getTahunAjaran(t.tanggal_tagihan) === globalTa);
+    body.innerHTML = MITRA_PIHAK.map(p => {
+        const rjk = srcRjk.filter(x => x.pihak === p);
+        const totRjk = rjk.reduce((s, x) => s + (Number(x.subtotal) || 0), 0);
+        const tgh = srcTgh.filter(t => t.pihak === p);
+        const totTgh = tgh.reduce((s, t) => s + (Number(t.total_tagihan) || 0), 0);
+        const dibayar = tgh.reduce((s, t) => s + getTotalDibayarMitra(t), 0);
+        const selisih = totTgh - totRjk;
+        let selBadge;
+        if (!rjk.length && !tgh.length) selBadge = '<span class="badge bg-secondary">KOSONG</span>';
+        else if (selisih === 0) selBadge = '<span class="badge bg-success">SESUAI</span>';
+        else if (selisih > 0) selBadge = '<span class="badge bg-warning text-dark" title="Total tagihan mitra melebihi sub total rujukan">Tagihan + ' + formatRupiah(selisih) + '</span>';
+        else selBadge = '<span class="badge bg-info text-dark" title="Sub total rujukan melebihi total tagihan mitra">Rujukan + ' + formatRupiah(-selisih) + '</span>';
+        return '<div class="col-md-6"><div class="border rounded p-2 bg-white h-100">' +
+            '<div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">' + pihakBadge(p) + selBadge + '</div>' +
+            '<div class="small mb-1"><i class="fa-solid fa-file-medical text-success me-1"></i>Rujukan tercatat: <strong>' + rjk.length + '</strong> rujukan &mdash; Sub Total <strong class="text-success">' + formatRupiah(totRjk) + '</strong></div>' +
+            '<div class="small mb-1"><i class="fa-solid fa-file-invoice text-primary me-1"></i>Tagihan mitra tercatat: <strong>' + tgh.length + '</strong> tagihan &mdash; Total <strong class="text-primary">' + formatRupiah(totTgh) + '</strong></div>' +
+            '<div class="small text-muted"><i class="fa-solid fa-money-bill-transfer me-1"></i>Sudah dibayar ke mitra: ' + formatRupiah(dibayar) + '</div>' +
+        '</div></div>';
+    }).join('');
+}
+
+// Normalisasi nilai "Rujukan Ke" dari import Excel (mis. "Edelweiss" -> RS EDELWEIS).
+function normalizePihakImport(v) {
+    let s = String(v || '').trim().toUpperCase();
+    if (!s) return null;
+    if (s.includes('EDEL')) return 'RS EDELWEIS';
+    if (s.includes('PINDAD')) return 'KLINIK PINDAD';
+    return s;
+}
+function downloadTemplateDatabase() { if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet([{NAMA_PEGAWAI: "CONTOH NAMA", BIDANG: "HRD", NAMA_PASIEN: "CONTOH PASIEN", POLI_RUANG: "POLI ANAK", RUJUKAN_KE: "RS EDELWEIS", TANGGAL_RUJUKAN: "2026-01-01", NO_INVOICE: "INV001", TAGIHAN_NF: 1000000, DISKON: 0, SUB_TOTAL: 1000000, COVER_YAYASAN: 1000000, BIAYA_PRIBADI: 0}]); XLSX.utils.book_append_sheet(wb, ws, "Template Database"); XLSX.writeFile(wb, "Template_Import_Database_Rujukan.xlsx"); showToast('Template berhasil diunduh!'); }
 
 async function importDatabaseExcel(event) {
     if (!canWrite('import data rujukan')) return;
@@ -2190,6 +2370,7 @@ async function importDatabaseExcel(event) {
                         pegawai: cleanedName, bidang: bidangFinal,
                         pasien: String(keys.NAMA_PASIEN || keys.PASIEN || 'PASIEN').toUpperCase(),
                         poli: String(keys.POLI_RUANG || keys.POLI || 'POLI UMUM').toUpperCase(),
+                        pihak: normalizePihakImport(keys.RUJUKAN_KE || keys.PIHAK || keys.MITRA || ''),
                         tanggal: parseExcelDate(keys.TANGGAL_RUJUKAN || keys.TANGGAL || new Date()),
                         tagihan: parseFloat(keys.TAGIHAN_NF || keys.TAGIHAN || 0) || 0,
                         diskon: parseFloat(keys.DISKON || 0) || 0,
@@ -2198,7 +2379,7 @@ async function importDatabaseExcel(event) {
                 });
                 
                 pendingImportData = { type: 'database_rujukan', data: insertData };
-                let previewData = insertData.slice(0, 50).map(d => ({ PEGAWAI: d.pegawai, BIDANG: d.bidang, PASIEN: d.pasien, TGL: d.tanggal, TA: getTahunAjaran(d.tanggal), INVOICE: d.no_invoice, TAGIHAN: d.tagihan, COVER: d.cover_yayasan }));
+                let previewData = insertData.slice(0, 50).map(d => ({ PEGAWAI: d.pegawai, BIDANG: d.bidang, PASIEN: d.pasien, RUJUKAN_KE: d.pihak || '-', TGL: d.tanggal, TA: getTahunAjaran(d.tanggal), INVOICE: d.no_invoice, TAGIHAN: d.tagihan, COVER: d.cover_yayasan }));
                 showPreviewImport('Preview Import Database Rujukan', `${insertData.length} data rujukan akan diproses. Data duplikat (yang sama persis) akan otomatis diabaikan.`, previewData, Object.keys(previewData[0] || {PEGAWAI:''}));
             } else { showToast('File kosong.', 'warning'); }
         } catch(err) { showToast('Gagal mengimpor file: ' + err.message, 'danger'); }
@@ -2825,6 +3006,546 @@ async function saveCicilan(event) {
     showLoading(false);
 }
 
+// ===========================================================================
+// [BARU - TASK 5c] TAGIHAN MITRA — RIWAYAT PEMBAYARAN KE RS EDELWEISS & KLINIK PINDAD
+// Pola data & alur mengikuti menu Cicilan: sisa & status dihitung ulang otomatis
+// pada setiap catat/edit/hapus pembayaran.
+// ===========================================================================
+const MITRA_PIHAK = ['RS EDELWEIS', 'KLINIK PINDAD'];
+function pihakLabel(p) { return p === 'RS EDELWEIS' ? 'RS Edelweiss' : (p === 'KLINIK PINDAD' ? 'Klinik Pindad' : String(p || '-')); }
+function pihakBadge(pihak) {
+    return pihak === 'RS EDELWEIS' ? '<span class="badge bg-success"><i class="fa-solid fa-hospital me-1"></i>RS Edelweiss</span>'
+        : pihak === 'KLINIK PINDAD' ? '<span class="badge bg-primary"><i class="fa-solid fa-clinic-medical me-1"></i>Klinik Pindad</span>'
+        : '<span class="badge bg-secondary">' + escapeHtml(pihak) + '</span>';
+}
+function getTotalDibayarMitra(t) { return Math.max(0, (Number(t.total_tagihan) || 0) - (Number(t.sisa_tagihan) || 0)); }
+
+function getFilteredMitra() {
+    const fPihak = document.getElementById('filterMitraPihak')?.value || 'SEMUA';
+    const fStatus = document.getElementById('filterMitraStatus')?.value || 'SEMUA';
+    const q = (document.getElementById('searchMitra')?.value || '').toLowerCase();
+    return dataMitraTagihan.filter(t => {
+        if (fPihak !== 'SEMUA' && t.pihak !== fPihak) return false;
+        if (fStatus !== 'SEMUA' && t.status !== fStatus) return false;
+        if (q && !((t.keterangan || '').toLowerCase().includes(q) || (t.no_invoice || '').toLowerCase().includes(q) || (t.pihak || '').toLowerCase().includes(q))) return false;
+        return true;
+    }).sort((a, b) => String(b.tanggal_tagihan || '').localeCompare(String(a.tanggal_tagihan || '')) || String(b.id || '').localeCompare(String(a.id || '')));
+}
+
+function renderMitraStats(list) {
+    const statsEl = document.getElementById('mitraStats');
+    if (!statsEl) return;
+    const totTagihan = list.reduce((s, t) => s + (Number(t.total_tagihan) || 0), 0);
+    const totDibayar = list.reduce((s, t) => s + getTotalDibayarMitra(t), 0);
+    const totSisa = list.reduce((s, t) => s + (Number(t.sisa_tagihan) || 0), 0);
+    statsEl.innerHTML =
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Tagihan Mitra</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(totTagihan) + '</h5><div class="small text-muted">' + list.length + ' tagihan tercatat</div></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100 border-success"><div class="small text-muted">Total Sudah Dibayar ke Mitra</div><h5 class="fw-bold text-success mb-0">' + formatRupiah(totDibayar) + '</h5><div class="small text-muted">' + list.reduce((s, t) => s + (t.riwayat || []).length, 0) + ' pembayaran</div></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Sisa Tagihan</div><h5 class="fw-bold text-danger mb-0">' + formatRupiah(totSisa) + '</h5><div class="small text-muted">' + list.filter(t => t.status !== 'LUNAS').length + ' tagihan belum lunas</div></div></div>';
+}
+
+function renderMitraTable() {
+    const bodyEl = document.getElementById('mitraTableBody');
+    if (!bodyEl) return;
+    const list = getFilteredMitra();
+    renderMitraStats(list);
+    let pageSize = parseInt(document.getElementById('mitraPageSize')?.value) || 15;
+    const totalRows = list.length, totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPageMitra > totalPages) currentPageMitra = totalPages;
+    if (currentPageMitra < 1) currentPageMitra = 1;
+    const startIndex = (currentPageMitra - 1) * pageSize;
+    const rows = list.slice(startIndex, startIndex + pageSize);
+    const today = new Date().toISOString().split('T')[0];
+    let html = '';
+    rows.forEach((t, index) => {
+        const rowNumber = startIndex + index + 1;
+        const dibayar = getTotalDibayarMitra(t);
+        const statusBadge = t.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : '<span class="badge bg-warning text-dark">Belum Lunas</span>';
+        const overdue = t.status !== 'LUNAS' && t.jatuh_tempo && String(t.jatuh_tempo) < today;
+        const bayarBtn = t.status !== 'LUNAS' ? '<button class="btn btn-sm btn-primary needs-write" onclick="openModalPmb(\'' + t.id + '\')" title="Catat Pembayaran ke Mitra"><i class="fa-solid fa-money-bill-transfer"></i></button> ' : '';
+        html += '<tr><td>' + rowNumber + '</td>' +
+            '<td>' + pihakBadge(t.pihak) + '</td>' +
+            '<td>' + (t.no_invoice ? '<span class="fw-bold">' + escapeHtml(t.no_invoice) + '</span><br>' : '') + '<span class="small text-muted">' + escapeHtml(t.keterangan || '-') + '</span></td>' +
+            '<td>' + parseExcelDate(t.tanggal_tagihan) + '</td>' +
+            '<td>' + (t.jatuh_tempo ? parseExcelDate(t.jatuh_tempo) : '-') + (overdue ? ' <span class="badge bg-danger">Lewat Tempo</span>' : '') + '</td>' +
+            '<td class="text-primary">' + formatRupiah(t.total_tagihan) + '</td>' +
+            '<td class="fw-bold text-success">' + formatRupiah(dibayar) + '</td>' +
+            '<td class="fw-bold ' + (Number(t.sisa_tagihan) > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(t.sisa_tagihan) + '</td>' +
+            '<td class="text-center">' + statusBadge + '</td>' +
+            '<td class="text-center text-nowrap">' + bayarBtn + '<button class="btn btn-sm btn-info text-white" onclick="showMitraDetail(\'' + t.id + '\')" title="Detail & Riwayat Pembayaran"><i class="fa-solid fa-eye"></i></button> <button class="btn btn-sm btn-warning needs-write" onclick="openModalMitra(\'' + t.id + '\')" title="Edit Tagihan"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="hapusMitraTagihan(\'' + t.id + '\')" title="Hapus Permanen (termasuk riwayat pembayaran)"><i class="fa-solid fa-trash"></i></button></td></tr>';
+    });
+    bodyEl.innerHTML = html || '<tr><td colspan="10" class="text-center text-muted">Belum ada tagihan mitra' + (window.__mitraTableMissing ? ' — tabel "tagihan_mitra" belum dibuat di Supabase (jalankan schema_supabase.sql)' : '') + '</td></tr>';
+    const infoEl = document.getElementById('mitraPaginationInfo');
+    if (infoEl) infoEl.innerText = 'Menampilkan ' + (totalRows > 0 ? startIndex + 1 : 0) + ' - ' + Math.min(startIndex + pageSize, totalRows) + ' dari ' + totalRows + ' tagihan';
+    let navHtml = '<li class="page-item ' + (currentPageMitra === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeMitraPage(' + (currentPageMitra - 1) + ')">Prev</a></li>';
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPageMitra - 1 && i <= currentPageMitra + 1)) { navHtml += '<li class="page-item ' + (currentPageMitra === i ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeMitraPage(' + i + ')">' + i + '</a></li>'; } }
+    navHtml += '<li class="page-item ' + (currentPageMitra === totalPages || totalPages === 0 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changeMitraPage(' + (currentPageMitra + 1) + ')">Next</a></li>';
+    const navEl = document.getElementById('mitraPaginationNav');
+    if (navEl) navEl.innerHTML = navHtml;
+    renderTrenBayarMitraChart();
+    renderPembayaranMitra(); // [BARU] segarkan juga ledger Pembayaran Mitra
+}
+function changeMitraPage(page) { currentPageMitra = page; renderMitraTable(); }
+
+function openModalMitra(editId = null) {
+    if (!canWrite('catat/edit tagihan mitra')) return;
+    let editData = null;
+    if (editId) { editData = dataMitraTagihan.find(x => x.id === editId); if (!editData) { showToast('Data tagihan tidak ditemukan!', 'danger'); return; } }
+    let pihakOptions = '<option value="">-- Pilih Pihak / Mitra --</option>';
+    MITRA_PIHAK.forEach(p => { pihakOptions += '<option value="' + p + '">' + pihakLabel(p) + '</option>'; });
+    document.getElementById('mitraPihak').innerHTML = pihakOptions;
+    document.getElementById('formMitra').reset();
+    document.getElementById('mitraEditId').value = editId || '';
+    document.getElementById('mitraTanggal').value = new Date().toISOString().split('T')[0];
+    if (editData) {
+        document.getElementById('modalMitraTitle').innerText = 'Edit Tagihan Mitra';
+        document.getElementById('btnMitraSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Update Tagihan';
+        document.getElementById('mitraPihak').value = editData.pihak;
+        document.getElementById('mitraInvoice').value = editData.no_invoice || '';
+        document.getElementById('mitraKeterangan').value = editData.keterangan || '';
+        document.getElementById('mitraTanggal').value = parseExcelDate(editData.tanggal_tagihan);
+        document.getElementById('mitraJatuhTempo').value = editData.jatuh_tempo ? parseExcelDate(editData.jatuh_tempo) : '';
+        document.getElementById('mitraTotal').value = editData.total_tagihan;
+        const dibayar = getTotalDibayarMitra(editData);
+        document.getElementById('infoMitraTotal').innerHTML = '<span class="text-primary"><i class="fa-solid fa-pen-to-square me-1"></i> Mode Edit:</span> sudah dibayar ' + formatRupiah(dibayar) + ' via ' + ((editData.riwayat || []).length) + ' pembayaran. Sisa tagihan dihitung ulang otomatis.';
+    } else {
+        document.getElementById('modalMitraTitle').innerText = 'Catat Tagihan Mitra Baru';
+        document.getElementById('btnMitraSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Simpan Tagihan';
+        document.getElementById('infoMitraTotal').innerHTML = '';
+    }
+    showModal('modalMitra');
+}
+
+async function saveMitra(event) {
+    if (!canWrite('simpan tagihan mitra')) return;
+    event.preventDefault();
+    const editId = document.getElementById('mitraEditId').value || null;
+    const pihak = document.getElementById('mitraPihak').value;
+    const invoice = (document.getElementById('mitraInvoice').value || '').trim().toUpperCase();
+    const keterangan = document.getElementById('mitraKeterangan').value;
+    const tanggal = document.getElementById('mitraTanggal').value;
+    const jatuhTempo = document.getElementById('mitraJatuhTempo').value || null;
+    const total = parseFloat(document.getElementById('mitraTotal').value) || 0;
+    if (!pihak || !tanggal || total <= 0) { showToast('Pihak, tanggal tagihan, dan total tagihan wajib diisi (total > 0)!', 'warning'); return; }
+    showLoading(true);
+    try {
+        if (editId) {
+            const old = dataMitraTagihan.find(x => x.id === editId);
+            if (!old) { showToast('Data tagihan tidak ditemukan!', 'danger'); showLoading(false); return; }
+            const dibayar = (old.riwayat || []).reduce((s, r) => s + (Number(r.jumlah) || 0), 0);
+            const sisaBaru = Math.max(0, total - dibayar);
+            const statusBaru = sisaBaru <= 0 ? 'LUNAS' : 'BELUM LUNAS';
+            if (!confirm('Update tagihan ' + pihakLabel(pihak) + '?\n\nTotal Tagihan: ' + formatRupiah(old.total_tagihan) + ' -> ' + formatRupiah(total) + '\nSudah Dibayar: ' + formatRupiah(dibayar) + '\nSisa Tagihan Baru: ' + formatRupiah(sisaBaru) + '\n\nStatus akan disesuaikan otomatis.')) { showLoading(false); return; }
+            const { error } = await db.from('tagihan_mitra').update({ pihak, no_invoice: invoice, keterangan, tanggal_tagihan: tanggal, jatuh_tempo: jatuhTempo, total_tagihan: total, sudah_dibayar: dibayar, sisa_tagihan: sisaBaru, status: statusBaru }).eq('id', editId);
+            if (error) throw error;
+            await loadInitialData(); hideModal('modalMitra');
+            showToast('Tagihan mitra berhasil diperbarui! Sisa tagihan: ' + formatRupiah(sisaBaru));
+        } else {
+            const newId = 'TM' + Date.now();
+            const { error } = await db.from('tagihan_mitra').insert({ id: newId, pihak, no_invoice: invoice, keterangan, tanggal_tagihan: tanggal, jatuh_tempo: jatuhTempo, total_tagihan: total, sudah_dibayar: 0, sisa_tagihan: total, status: 'BELUM LUNAS' });
+            if (error) throw error;
+            await loadInitialData(); hideModal('modalMitra');
+            showToast('Tagihan ' + pihakLabel(pihak) + ' berhasil dicatat!');
+        }
+    } catch (err) { showToast('Error: ' + err.message, 'danger'); }
+    showLoading(false);
+}
+
+function showMitraDetail(tagihanId) {
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    document.getElementById('modalMitraDetailTitle').innerText = 'Detail Tagihan: ' + pihakLabel(t.pihak) + (t.no_invoice ? ' — ' + t.no_invoice : '');
+    const dibayar = getTotalDibayarMitra(t);
+    const overdue = t.status !== 'LUNAS' && t.jatuh_tempo && String(t.jatuh_tempo) < new Date().toISOString().split('T')[0];
+    const infoHtml = '<div class="col-md-6"><p class="mb-1"><strong>Pihak / Mitra:</strong> ' + pihakLabel(t.pihak) + '</p>' +
+        '<p class="mb-1"><strong>No Invoice:</strong> ' + (t.no_invoice ? escapeHtml(t.no_invoice) : '-') + '</p>' +
+        '<p class="mb-1"><strong>Keterangan:</strong> ' + (t.keterangan ? escapeHtml(t.keterangan) : '-') + '</p>' +
+        '<p class="mb-1"><strong>Tanggal Tagihan:</strong> ' + parseExcelDate(t.tanggal_tagihan) + '</p>' +
+        '<p class="mb-1"><strong>Jatuh Tempo:</strong> ' + (t.jatuh_tempo ? parseExcelDate(t.jatuh_tempo) + (overdue ? ' <span class="badge bg-danger">Lewat Tempo</span>' : '') : '-') + '</p></div>' +
+        '<div class="col-md-6"><p class="mb-1"><strong>Total Tagihan:</strong> ' + formatRupiah(t.total_tagihan) + '</p>' +
+        '<p class="mb-1"><strong>Sudah Dibayar:</strong> <span class="text-success fw-bold">' + formatRupiah(dibayar) + '</span> (' + ((t.riwayat || []).length) + ' pembayaran)</p>' +
+        '<p class="mb-1"><strong>Sisa Tagihan:</strong> <span class="text-danger fw-bold">' + formatRupiah(t.sisa_tagihan) + '</span></p>' +
+        '<p class="mb-1"><strong>Status:</strong> ' + (t.status === 'LUNAS' ? '<span class="badge bg-success">Lunas</span>' : '<span class="badge bg-warning text-dark">Belum Lunas</span>') + '</p></div>';
+    document.getElementById('mitraDetailInfo').innerHTML = infoHtml;
+    document.getElementById('bayarMitraTagihanId').value = t.id;
+    resetMitraBayarForm();
+    let html = '';
+    if (t.riwayat && t.riwayat.length > 0) {
+        urutkanRiwayatTanggalAsc(t.riwayat).forEach((r, idx) => {
+            html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(r.tanggal) + '</td><td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td><td>' + escapeHtml(r.metode || '-') + '</td><td>' + escapeHtml(r.keterangan || '-') + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="editPembayaranMitra(\'' + t.id + '\', \'' + r.id + '\')" title="Edit Pembayaran"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-outline-danger needs-write" onclick="hapusPembayaranMitra(\'' + t.id + '\', \'' + r.id + '\')" title="Hapus Pembayaran"><i class="fa-solid fa-trash"></i></button></td></tr>';
+        });
+    } else {
+        html = '<tr><td colspan="6" class="text-center text-muted">Belum ada pembayaran</td></tr>';
+    }
+    document.getElementById('mitraRiwayatTableBody').innerHTML = html;
+    showModal('modalMitraDetail');
+}
+
+// [BARU - TASK 9] Logika inti catat/edit pembayaran ke mitra — dipakai bersama
+// oleh form di modal Detail Tagihan (bayarMitra) dan menu Pembayaran Mitra
+// (savePmb). Insert/update riwayat + hitung ulang sisa & status tagihan.
+async function prosesPembayaranMitraCore(t, tanggal, jumlah, metode, ket, editRiwayatId) {
+    showLoading(true);
+    try {
+        let totalDibayar;
+        if (editRiwayatId) {
+            const target = (t.riwayat || []).find(r => String(r.id) === String(editRiwayatId));
+            if (!target) { showToast('Data pembayaran tidak ditemukan!', 'danger'); showLoading(false); return { ok: false }; }
+            const dibayarLain = (t.riwayat || []).reduce((s, r) => s + (String(r.id) === String(editRiwayatId) ? 0 : (Number(r.jumlah) || 0)), 0);
+            const sisaSebelumEdit = Math.max(0, (Number(t.total_tagihan) || 0) - dibayarLain);
+            if (jumlah > sisaSebelumEdit && !confirm('Nominal melebihi sisa tagihan (' + formatRupiah(sisaSebelumEdit) + '). Lanjutkan (dianggap lebih bayar)?')) { showLoading(false); return { ok: false }; }
+            const { error } = await db.from('tagihan_mitra_riwayat').update({ tanggal, jumlah, metode, keterangan: ket }).eq('id', editRiwayatId);
+            if (error) throw error;
+            totalDibayar = dibayarLain + jumlah;
+        } else {
+            const sisaSekarang = Number(t.sisa_tagihan) || 0;
+            if (jumlah > sisaSekarang && !confirm('Nominal melebihi sisa tagihan (' + formatRupiah(sisaSekarang) + '). Lanjutkan (dianggap lebih bayar)?')) { showLoading(false); return { ok: false }; }
+            const { error } = await db.from('tagihan_mitra_riwayat').insert({ tagihan_id: t.id, tanggal, jumlah, metode, keterangan: ket });
+            if (error) throw error;
+            totalDibayar = getTotalDibayarMitra(t) + jumlah;
+        }
+        const sisaBaru = Math.max(0, (Number(t.total_tagihan) || 0) - totalDibayar);
+        const statusBaru = sisaBaru <= 0 ? 'LUNAS' : 'BELUM LUNAS';
+        const { error: errUpd } = await db.from('tagihan_mitra').update({ sudah_dibayar: totalDibayar, sisa_tagihan: sisaBaru, status: statusBaru }).eq('id', t.id);
+        if (errUpd) throw errUpd;
+        showLoading(false);
+        return { ok: true, statusBaru: statusBaru };
+    } catch (err) { showToast('Error: ' + err.message, 'danger'); showLoading(false); return { ok: false }; }
+}
+
+async function bayarMitra(event) {
+    if (!canWrite('catat/edit pembayaran tagihan mitra')) return;
+    event.preventDefault();
+    const tagihanId = document.getElementById('bayarMitraTagihanId').value;
+    const editRiwayatId = document.getElementById('bayarMitraEditId').value || null;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    const jumlah = parseFloat(document.getElementById('bayarMitraJumlah').value) || 0;
+    const tanggal = document.getElementById('bayarMitraTanggal').value;
+    const metode = document.getElementById('bayarMitraMetode').value;
+    const ket = document.getElementById('bayarMitraKet').value;
+    if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; }
+    const res = await prosesPembayaranMitraCore(t, tanggal, jumlah, metode, ket, editRiwayatId);
+    if (!res.ok) return;
+    await loadInitialData(); showMitraDetail(tagihanId);
+    showToast(res.statusBaru === 'LUNAS' ? 'Pembayaran dicatat — tagihan ' + pihakLabel(t.pihak) + ' LUNAS!' : 'Pembayaran berhasil dicatat!');
+}
+
+function editPembayaranMitra(tagihanId, riwayatId) {
+    if (!canWrite('edit pembayaran tagihan mitra')) return;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    const r = (t.riwayat || []).find(x => String(x.id) === String(riwayatId));
+    if (!r) { showToast('Data pembayaran tidak ditemukan!', 'danger'); return; }
+    document.getElementById('bayarMitraTagihanId').value = t.id;
+    document.getElementById('bayarMitraEditId').value = r.id;
+    document.getElementById('bayarMitraTanggal').value = parseExcelDate(r.tanggal);
+    document.getElementById('bayarMitraJumlah').value = r.jumlah;
+    document.getElementById('bayarMitraMetode').value = r.metode || 'TRANSFER BANK';
+    document.getElementById('bayarMitraKet').value = r.keterangan || '';
+    document.getElementById('bayarMitraTitle').innerHTML = '<i class="fa-solid fa-pen me-1"></i> Edit Pembayaran Tagihan <span class="badge bg-warning text-dark ms-1">Mode Edit</span>';
+    document.getElementById('btnMitraBayarSubmit').innerHTML = '<i class="fa-solid fa-save"></i>';
+    document.getElementById('btnMitraBayarSubmit').title = 'Update Pembayaran';
+    document.getElementById('btnMitraBayarCancelEdit').style.display = '';
+    document.getElementById('bayarMitraJumlah').focus();
+    showToast('Mode edit pembayaran. Ubah data lalu klik tombol simpan.', 'info');
+}
+
+function resetMitraBayarForm() {
+    const tglEl = document.getElementById('bayarMitraTanggal');
+    document.getElementById('bayarMitraEditId').value = '';
+    if (tglEl) tglEl.value = new Date().toISOString().split('T')[0];
+    document.getElementById('bayarMitraJumlah').value = '';
+    document.getElementById('bayarMitraMetode').value = 'TRANSFER BANK';
+    document.getElementById('bayarMitraKet').value = '';
+    document.getElementById('bayarMitraTitle').innerHTML = '<i class="fa-solid fa-cash-register me-1"></i> Catat Pembayaran ke Mitra';
+    document.getElementById('btnMitraBayarSubmit').innerHTML = '<i class="fa-solid fa-check"></i>';
+    document.getElementById('btnMitraBayarSubmit').title = 'Catat Pembayaran';
+    document.getElementById('btnMitraBayarCancelEdit').style.display = 'none';
+}
+
+async function hapusPembayaranMitra(tagihanId, riwayatId) {
+    if (!canWrite('hapus pembayaran tagihan mitra')) return;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    const p = (t.riwayat || []).find(r => String(r.id) === String(riwayatId));
+    if (!p) return;
+    if (!confirm('Yakin ingin MENGHAPUS pembayaran ini?\n\nTanggal: ' + parseExcelDate(p.tanggal) + '\nNominal: ' + formatRupiah(p.jumlah) + '\nMetode: ' + (p.metode || '-') + '\n\nSisa tagihan akan bertambah otomatis.')) return;
+    showLoading(true);
+    try {
+        const { error } = await db.from('tagihan_mitra_riwayat').delete().eq('id', p.id);
+        if (error) throw error;
+        const totalDibayar = Math.max(0, getTotalDibayarMitra(t) - (Number(p.jumlah) || 0));
+        const sisaBaru = Math.max(0, (Number(t.total_tagihan) || 0) - totalDibayar);
+        const statusBaru = sisaBaru <= 0 ? 'LUNAS' : 'BELUM LUNAS';
+        const { error: errUpd } = await db.from('tagihan_mitra').update({ sudah_dibayar: totalDibayar, sisa_tagihan: sisaBaru, status: statusBaru }).eq('id', tagihanId);
+        if (errUpd) throw errUpd;
+        await loadInitialData();
+        const detailEl = document.getElementById('modalMitraDetail');
+        if (detailEl && detailEl.classList.contains('show')) showMitraDetail(tagihanId); // modal detail sedang terbuka? segarkan isinya
+        showToast('Pembayaran dihapus.');
+    } catch (err) { showToast('Error: ' + err.message, 'danger'); }
+    showLoading(false);
+}
+
+async function hapusMitraTagihan(tagihanId) {
+    if (!canWrite('hapus tagihan mitra')) return;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    const totalDibayar = getTotalDibayarMitra(t);
+    const msg = 'Yakin ingin MENGHAPUS PERMANEN tagihan ' + pihakLabel(t.pihak) + '?\n\n' +
+        'Total Tagihan: ' + formatRupiah(t.total_tagihan) + '\n' +
+        'Sudah Dibayar: ' + formatRupiah(totalDibayar) + ' (' + ((t.riwayat || []).length) + ' pembayaran)\n\n' +
+        'Seluruh riwayat pembayaran tagihan ini juga akan TERHAPUS PERMANEN.';
+    if (!confirm(msg)) return;
+    showLoading(true);
+    try {
+        const { error: errR } = await db.from('tagihan_mitra_riwayat').delete().eq('tagihan_id', tagihanId);
+        if (errR) throw errR;
+        const { error: errT } = await db.from('tagihan_mitra').delete().eq('id', tagihanId);
+        if (errT) throw errT;
+        await loadInitialData();
+        showToast('Tagihan mitra beserta riwayat pembayarannya dihapus.');
+    } catch (err) { showToast('Error: ' + err.message, 'danger'); }
+    showLoading(false);
+}
+
+// Export Tagihan Mitra: Sheet 1 daftar tagihan (+TOTAL) & Sheet 2 riwayat pembayaran
+function exportMitraExcel() {
+    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
+    try {
+        const list = getFilteredMitra();
+        if (!list.length) { showToast('Tidak ada data tagihan mitra untuk diexport.', 'warning'); return; }
+        const wb = XLSX.utils.book_new();
+        const totT = list.reduce((s, t) => s + (Number(t.total_tagihan) || 0), 0);
+        const totD = list.reduce((s, t) => s + getTotalDibayarMitra(t), 0);
+        const totS = list.reduce((s, t) => s + (Number(t.sisa_tagihan) || 0), 0);
+        const rows = list.map((t, i) => ({ 'No': i + 1, 'PIHAK / MITRA': pihakLabel(t.pihak), 'NO INVOICE': t.no_invoice || '', 'KETERANGAN': t.keterangan || '', 'TGL TAGIHAN': parseExcelDate(t.tanggal_tagihan), 'JATUH TEMPO': t.jatuh_tempo ? parseExcelDate(t.jatuh_tempo) : '', 'TOTAL TAGIHAN': Number(t.total_tagihan) || 0, 'SUDAH DIBAYAR': getTotalDibayarMitra(t), 'SISA TAGIHAN': Number(t.sisa_tagihan) || 0, 'STATUS': t.status, 'JML PEMBAYARAN': (t.riwayat || []).length }));
+        rows.push({ 'No': '', 'PIHAK / MITRA': 'TOTAL', 'NO INVOICE': '', 'KETERANGAN': '', 'TGL TAGIHAN': '', 'JATUH TEMPO': '', 'TOTAL TAGIHAN': totT, 'SUDAH DIBAYAR': totD, 'SISA TAGIHAN': totS, 'STATUS': '', 'JML PEMBAYARAN': list.reduce((s, t) => s + (t.riwayat || []).length, 0) });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 5 }, { wch: 16 }, { wch: 18 }, { wch: 32 }, { wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 13 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Tagihan Mitra');
+        const flat = [];
+        list.forEach(t => { (t.riwayat || []).forEach(r => flat.push({ p: pihakLabel(t.pihak), inv: t.no_invoice || '', tgl: r.tanggal, jml: Number(r.jumlah) || 0, met: r.metode || '', ket: r.keterangan || t.keterangan || '' })); });
+        if (flat.length) {
+            flat.sort((a, b) => String(a.tgl || '').localeCompare(String(b.tgl || '')));
+            const rowsB = flat.map((r, i) => ({ 'No': i + 1, 'PIHAK / MITRA': r.p, 'NO INVOICE': r.inv, 'TANGGAL BAYAR': parseExcelDate(r.tgl), 'NOMINAL': r.jml, 'METODE': r.met, 'KETERANGAN': r.ket }));
+            rowsB.push({ 'No': '', 'PIHAK / MITRA': 'TOTAL', 'NO INVOICE': '', 'TANGGAL BAYAR': '', 'NOMINAL': flat.reduce((s, r) => s + r.jml, 0), 'METODE': '', 'KETERANGAN': '' });
+            const wsB = XLSX.utils.json_to_sheet(rowsB);
+            wsB['!cols'] = [{ wch: 5 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 32 }];
+            XLSX.utils.book_append_sheet(wb, wsB, 'Riwayat Pembayaran');
+        }
+        const fPihak = document.getElementById('filterMitraPihak')?.value || 'SEMUA';
+        const namaFile = 'Tagihan_Mitra' + (fPihak === 'SEMUA' ? '_Semua_Pihak' : '_' + fPihak.replace(/\s+/g, '_')) + '.xlsx';
+        XLSX.writeFile(wb, namaFile);
+        showToast('Tagihan mitra berhasil diexport: ' + namaFile);
+    } catch (err) { console.error('exportMitraExcel error:', err); showToast('Gagal export Excel: ' + err.message, 'danger'); }
+}
+
+// ===== [BARU - TASK 9] MENU PEMBAYARAN MITRA (PEMBAYARAN DARI NF KE MITRA) =====
+// Ledger semua pembayaran NF ke RS Edelweiss & Klinik Pindad (dari
+// tagihan_mitra_riwayat yang ter-join ke tagihannya), lengkap dengan form catat
+// pembayaran (pilih pihak -> pilih tagihan -> nominal otomatis diisi sisa),
+// edit, hapus, filter pihak/tahun ajaran, dan export Excel. Sisa & status
+// tagihan selalu dihitung ulang otomatis via prosesPembayaranMitraCore().
+function getFilteredPembayaranMitra() {
+    const fPihak = document.getElementById('filterPmbPihak')?.value || 'SEMUA';
+    const fTa = document.getElementById('filterPmbTa')?.value || 'SEMUA';
+    const q = (document.getElementById('searchPmb')?.value || '').toLowerCase();
+    const rows = [];
+    dataMitraTagihan.forEach(t => (t.riwayat || []).forEach(r => rows.push({ r: r, t: t, ta: getTahunAjaran(r.tanggal) })));
+    return rows.filter(x => {
+        if (fPihak !== 'SEMUA' && x.t.pihak !== fPihak) return false;
+        if (fTa !== 'SEMUA' && x.ta !== fTa) return false;
+        if (q && !((x.r.keterangan || '').toLowerCase().includes(q) || (x.r.metode || '').toLowerCase().includes(q) || (x.t.no_invoice || '').toLowerCase().includes(q) || (x.t.keterangan || '').toLowerCase().includes(q) || (x.t.pihak || '').toLowerCase().includes(q))) return false;
+        return true;
+    }).sort((a, b) => String(a.r.tanggal || '').localeCompare(String(b.r.tanggal || '')) || String(a.r.id || '').localeCompare(String(b.r.id || '')));
+}
+
+function populatePmbTaDropdown() {
+    const sel = document.getElementById('filterPmbTa');
+    if (!sel) return;
+    const taSet = new Set();
+    dataMitraTagihan.forEach(t => (t.riwayat || []).forEach(r => { const ta = getTahunAjaran(r.tanggal); if (ta && ta !== 'Unknown') taSet.add(ta); }));
+    let optionsHtml = '<option value="SEMUA">Semua Tahun Ajaran</option>';
+    Array.from(taSet).sort().forEach(ta => { optionsHtml += '<option value="' + escapeHtml(ta) + '">TA ' + escapeHtml(ta) + '</option>'; });
+    const cur = sel.value;
+    sel.innerHTML = optionsHtml;
+    sel.value = (cur === 'SEMUA' || taSet.has(cur)) ? cur : 'SEMUA';
+}
+
+function renderPembayaranMitra() {
+    const bodyEl = document.getElementById('pmbTableBody');
+    if (!bodyEl) return;
+    const rows = getFilteredPembayaranMitra();
+    const tot = rows.reduce((s, x) => s + (Number(x.r.jumlah) || 0), 0);
+    const rowsE = rows.filter(x => x.t.pihak === 'RS EDELWEIS');
+    const rowsP = rows.filter(x => x.t.pihak === 'KLINIK PINDAD');
+    const statsEl = document.getElementById('pmbStats');
+    if (statsEl) statsEl.innerHTML =
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Pembayaran NF ke Mitra</div><h5 class="fw-bold text-success mb-0">' + formatRupiah(tot) + '</h5><div class="small text-muted">' + rows.length + ' transaksi pembayaran</div></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100 border-success"><div class="small text-muted">Pembayaran ke RS Edelweiss</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(rowsE.reduce((s, x) => s + (Number(x.r.jumlah) || 0), 0)) + '</h5><div class="small text-muted">' + rowsE.length + ' pembayaran</div></div></div>' +
+        '<div class="col-md-4"><div class="card card-stat text-center p-2 h-100 border-primary"><div class="small text-muted">Pembayaran ke Klinik Pindad</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(rowsP.reduce((s, x) => s + (Number(x.r.jumlah) || 0), 0)) + '</h5><div class="small text-muted">' + rowsP.length + ' pembayaran</div></div></div>';
+    populatePmbTaDropdown();
+    let pageSize = parseInt(document.getElementById('pmbPageSize')?.value) || 15;
+    const totalRows = rows.length, totalPages = Math.ceil(totalRows / pageSize) || 1;
+    if (currentPagePmb > totalPages) currentPagePmb = totalPages;
+    if (currentPagePmb < 1) currentPagePmb = 1;
+    const startIndex = (currentPagePmb - 1) * pageSize;
+    const slice = rows.slice(startIndex, startIndex + pageSize);
+    let html = '';
+    slice.forEach((x, index) => {
+        const rowNumber = startIndex + index + 1;
+        const r = x.r, t = x.t;
+        html += '<tr><td>' + rowNumber + '</td>' +
+            '<td>' + parseExcelDate(r.tanggal) + '</td>' +
+            '<td>' + pihakBadge(t.pihak) + '</td>' +
+            '<td>' + (t.no_invoice ? '<span class="fw-bold">' + escapeHtml(t.no_invoice) + '</span><br>' : '') + '<span class="small text-muted">' + escapeHtml(t.keterangan || '-') + '</span></td>' +
+            '<td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td>' +
+            '<td>' + escapeHtml(r.metode || '-') + '</td>' +
+            '<td>' + escapeHtml(r.keterangan || '-') + '</td>' +
+            '<td class="fw-bold ' + (Number(t.sisa_tagihan) > 0 ? 'text-danger' : 'text-success') + '">' + formatRupiah(t.sisa_tagihan) + '</td>' +
+            '<td class="text-center">' + (x.ta && x.ta !== 'Unknown' ? '<span class="badge bg-light text-dark border">' + escapeHtml(x.ta) + '</span>' : '-') + '</td>' +
+            '<td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="editPmb(\'' + t.id + '\', \'' + r.id + '\')" title="Edit Pembayaran"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-outline-danger needs-write" onclick="hapusPembayaranMitra(\'' + t.id + '\', \'' + r.id + '\')" title="Hapus Pembayaran (sisa tagihan otomatis menyesuaikan)"><i class="fa-solid fa-trash"></i></button> <button class="btn btn-sm btn-info text-white" onclick="showMitraDetail(\'' + t.id + '\')" title="Detail Tagihan Terkait"><i class="fa-solid fa-eye"></i></button></td></tr>';
+    });
+    bodyEl.innerHTML = html || '<tr><td colspan="10" class="text-center text-muted">Belum ada pembayaran ke mitra' + (window.__mitraTableMissing ? ' — tabel "tagihan_mitra" belum dibuat di Supabase (jalankan schema_supabase.sql)' : '') + '. Klik <strong>Catat Pembayaran ke Mitra</strong>, atau tombol bayar pada tabel menu <em>Tagihan Mitra</em>.</td></tr>';
+    const infoEl = document.getElementById('pmbPaginationInfo');
+    if (infoEl) infoEl.innerText = 'Menampilkan ' + (totalRows > 0 ? startIndex + 1 : 0) + ' - ' + Math.min(startIndex + pageSize, totalRows) + ' dari ' + totalRows + ' pembayaran (urut tanggal terlama -> terbaru)';
+    let navHtml = '<li class="page-item ' + (currentPagePmb === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePmbPage(' + (currentPagePmb - 1) + ')">Prev</a></li>';
+    for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPagePmb - 1 && i <= currentPagePmb + 1)) { navHtml += '<li class="page-item ' + (currentPagePmb === i ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePmbPage(' + i + ')">' + i + '</a></li>'; } }
+    navHtml += '<li class="page-item ' + (currentPagePmb === totalPages || totalPages === 0 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePmbPage(' + (currentPagePmb + 1) + ')">Next</a></li>';
+    const navEl = document.getElementById('pmbPaginationNav');
+    if (navEl) navEl.innerHTML = navHtml;
+}
+function changePmbPage(page) { currentPagePmb = page; renderPembayaranMitra(); }
+
+function openModalPmb(preTagihanId = null) {
+    if (!canWrite('catat pembayaran ke mitra')) return;
+    document.getElementById('pmbEditId').value = '';
+    document.getElementById('pmbPihak').disabled = false;
+    document.getElementById('pmbTagihan').disabled = false;
+    let pihakOptions = '<option value="">-- Pilih Pihak / Mitra --</option>';
+    MITRA_PIHAK.forEach(p => { pihakOptions += '<option value="' + p + '">' + pihakLabel(p) + '</option>'; });
+    document.getElementById('pmbPihak').innerHTML = pihakOptions;
+    document.getElementById('modalPmbTitle').innerText = 'Catat Pembayaran NF ke Mitra';
+    document.getElementById('btnPmbSubmit').innerHTML = '<i class="fa-solid fa-money-bill-transfer me-1"></i> Simpan Pembayaran';
+    document.getElementById('pmbTanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('pmbJumlah').value = '';
+    document.getElementById('pmbMetode').value = 'TRANSFER BANK';
+    document.getElementById('pmbKet').value = '';
+    const t = preTagihanId ? dataMitraTagihan.find(x => x.id === preTagihanId) : null;
+    if (t) {
+        document.getElementById('pmbPihak').value = t.pihak;
+        populatePmbTagihanOptions(t.pihak, t.id);
+    } else {
+        populatePmbTagihanOptions('', null);
+    }
+    showModal('modalPmbMitra');
+}
+
+function onPmbPihakChange() { populatePmbTagihanOptions(document.getElementById('pmbPihak').value, null); }
+
+function populatePmbTagihanOptions(pihak, selectedId) {
+    const sel = document.getElementById('pmbTagihan');
+    const infoEl = document.getElementById('pmbInfo');
+    if (!pihak) {
+        sel.innerHTML = '<option value="">-- Pilih pihak dulu --</option>';
+        if (infoEl) infoEl.innerHTML = '';
+        return;
+    }
+    const list = dataMitraTagihan.filter(t => t.pihak === pihak)
+        .slice()
+        .sort((a, b) => (a.status === 'LUNAS' ? 1 : 0) - (b.status === 'LUNAS' ? 1 : 0) || String(a.tanggal_tagihan || '').localeCompare(String(b.tanggal_tagihan || '')) || String(a.id || '').localeCompare(String(b.id || '')));
+    if (!list.length) {
+        sel.innerHTML = '<option value="">-- Belum ada tagihan utk pihak ini --</option>';
+        if (infoEl) infoEl.innerHTML = '<div class="alert alert-warning py-2 mb-0 small"><i class="fa-solid fa-triangle-exclamation me-1"></i> Belum ada tagihan tercatat untuk <strong>' + pihakLabel(pihak) + '</strong>. Catat dulu tagihannya di menu <em>Tagihan Mitra</em>.</div>';
+        return;
+    }
+    let html = '<option value="">-- Pilih Tagihan --</option>';
+    list.forEach(t => {
+        const sisa = Number(t.sisa_tagihan) || 0;
+        const label = (t.no_invoice ? t.no_invoice : 'Tagihan ' + parseExcelDate(t.tanggal_tagihan)) + ' — sisa ' + formatRupiah(sisa) + (t.status === 'LUNAS' ? ' (LUNAS)' : '');
+        html += '<option value="' + t.id + '">' + escapeHtml(label) + '</option>';
+    });
+    sel.innerHTML = html;
+    if (selectedId) sel.value = selectedId;
+    onPmbTagihanChange();
+}
+
+function onPmbTagihanChange() {
+    const t = dataMitraTagihan.find(x => x.id === document.getElementById('pmbTagihan').value);
+    const infoEl = document.getElementById('pmbInfo');
+    const editMode = !!document.getElementById('pmbEditId').value;
+    if (!t) { if (infoEl) infoEl.innerHTML = ''; return; }
+    const dibayar = getTotalDibayarMitra(t);
+    const sisa = Number(t.sisa_tagihan) || 0;
+    if (infoEl) infoEl.innerHTML = '<div class="alert alert-info py-2 mb-0 small"><strong>' + (t.no_invoice ? escapeHtml(t.no_invoice) : 'Tagihan ' + parseExcelDate(t.tanggal_tagihan)) + '</strong>' + (t.keterangan ? ' &mdash; ' + escapeHtml(t.keterangan) : '') + '<br>Total: <strong>' + formatRupiah(t.total_tagihan) + '</strong> | Sudah dibayar: <strong class="text-success">' + formatRupiah(dibayar) + '</strong> | Sisa: <strong class="text-danger">' + formatRupiah(sisa) + '</strong>' + (editMode ? '' : ' <span class="text-muted">(nominal otomatis diisi sisa tagihan, boleh diubah)</span>') + '</div>';
+    if (!editMode) document.getElementById('pmbJumlah').value = sisa > 0 ? sisa : '';
+}
+
+async function savePmb(event) {
+    if (!canWrite('catat/edit pembayaran ke mitra')) return;
+    event.preventDefault();
+    const tagihanId = document.getElementById('pmbTagihan').value;
+    const editRiwayatId = document.getElementById('pmbEditId').value || null;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) { showToast('Pilih tagihan terkait terlebih dahulu!', 'warning'); return; }
+    const jumlah = parseFloat(document.getElementById('pmbJumlah').value) || 0;
+    const tanggal = document.getElementById('pmbTanggal').value;
+    const metode = document.getElementById('pmbMetode').value;
+    const ket = document.getElementById('pmbKet').value;
+    if (!tanggal || jumlah <= 0) { showToast('Tanggal dan nominal pembayaran wajib diisi (nominal > 0)!', 'warning'); return; }
+    const res = await prosesPembayaranMitraCore(t, tanggal, jumlah, metode, ket, editRiwayatId);
+    if (!res.ok) return;
+    await loadInitialData();
+    hideModal('modalPmbMitra');
+    showToast(res.statusBaru === 'LUNAS' ? 'Pembayaran dicatat — tagihan ' + pihakLabel(t.pihak) + (t.no_invoice ? ' (' + t.no_invoice + ')' : '') + ' LUNAS!' : 'Pembayaran ke ' + pihakLabel(t.pihak) + ' berhasil dicatat!');
+}
+
+function editPmb(tagihanId, riwayatId) {
+    if (!canWrite('edit pembayaran ke mitra')) return;
+    const t = dataMitraTagihan.find(x => x.id === tagihanId);
+    if (!t) return;
+    const r = (t.riwayat || []).find(x => String(x.id) === String(riwayatId));
+    if (!r) { showToast('Data pembayaran tidak ditemukan!', 'danger'); return; }
+    document.getElementById('pmbEditId').value = r.id;
+    document.getElementById('modalPmbTitle').innerText = 'Edit Pembayaran ke Mitra';
+    document.getElementById('btnPmbSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Update Pembayaran';
+    let pihakOptions = '<option value="">-- Pilih Pihak / Mitra --</option>';
+    MITRA_PIHAK.forEach(p => { pihakOptions += '<option value="' + p + '">' + pihakLabel(p) + '</option>'; });
+    document.getElementById('pmbPihak').innerHTML = pihakOptions;
+    document.getElementById('pmbPihak').value = t.pihak;
+    document.getElementById('pmbPihak').disabled = true;  // mode edit: pihak & tagihan terkunci
+    populatePmbTagihanOptions(t.pihak, t.id);
+    document.getElementById('pmbTagihan').disabled = true;
+    document.getElementById('pmbTanggal').value = parseExcelDate(r.tanggal);
+    document.getElementById('pmbJumlah').value = r.jumlah;
+    document.getElementById('pmbMetode').value = r.metode || 'TRANSFER BANK';
+    document.getElementById('pmbKet').value = r.keterangan || '';
+    document.getElementById('pmbInfo').innerHTML = '<div class="alert alert-warning py-2 mb-0 small"><i class="fa-solid fa-pen me-1"></i> Mode Edit — ubah tanggal/nominal/metode/keterangan lalu simpan. Sisa & status tagihan dihitung ulang otomatis.</div>';
+    showModal('modalPmbMitra');
+}
+
+// Export ledger pembayaran NF ke mitra (mengikuti filter pihak & TA aktif)
+function exportPembayaranMitraExcel() {
+    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
+    try {
+        const rows = getFilteredPembayaranMitra();
+        if (!rows.length) { showToast('Tidak ada data pembayaran mitra untuk diexport.', 'warning'); return; }
+        const wb = XLSX.utils.book_new();
+        const data = rows.map((x, i) => ({ 'No': i + 1, 'TANGGAL BAYAR': parseExcelDate(x.r.tanggal), 'PIHAK / MITRA': pihakLabel(x.t.pihak), 'NO INVOICE': x.t.no_invoice || '', 'KETERANGAN TAGIHAN': x.t.keterangan || '', 'NOMINAL BAYAR': Number(x.r.jumlah) || 0, 'METODE': x.r.metode || '', 'KETERANGAN': x.r.keterangan || '', 'SISA TAGIHAN': Number(x.t.sisa_tagihan) || 0, 'TAHUN AJARAN': (x.ta && x.ta !== 'Unknown') ? x.ta : '' }));
+        data.push({ 'No': '', 'TANGGAL BAYAR': '', 'PIHAK / MITRA': 'TOTAL', 'NO INVOICE': '', 'KETERANGAN TAGIHAN': '', 'NOMINAL BAYAR': rows.reduce((s, x) => s + (Number(x.r.jumlah) || 0), 0), 'METODE': '', 'KETERANGAN': '', 'SISA TAGIHAN': '', 'TAHUN AJARAN': '' });
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [{ wch: 5 }, { wch: 13 }, { wch: 16 }, { wch: 20 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 26 }, { wch: 15 }, { wch: 13 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Pembayaran Mitra');
+        const fPihak = document.getElementById('filterPmbPihak')?.value || 'SEMUA';
+        const fTa = document.getElementById('filterPmbTa')?.value || 'SEMUA';
+        const namaFile = 'Pembayaran_Mitra' + (fPihak === 'SEMUA' ? '_Semua_Pihak' : '_' + fPihak.replace(/\s+/g, '_')) + (fTa === 'SEMUA' ? '' : '_TA_' + fTa.replace(/\//g, '-')) + '.xlsx';
+        XLSX.writeFile(wb, namaFile);
+        showToast('Pembayaran mitra berhasil diexport: ' + namaFile);
+    } catch (err) { console.error('exportPembayaranMitraExcel error:', err); showToast('Gagal export Excel: ' + err.message, 'danger'); }
+}
+
 // ===== [BARU] REKAP JUMLAH SUDAH DICICIL PER SDM (PEGAWAI) =====
 // Total yang sudah dicicil per kesepakatan = total kewajiban - sisa kewajiban
 // (mencakup seluruh potongan/pembayaran tercatat, termasuk Kebijakan Yayasan)
@@ -2947,361 +3668,9 @@ function renderCicilanTable() {
     document.getElementById('cicilanPaginationNav').innerHTML = navHtml;
     // [BARU] Segarkan rekap jumlah sudah dicicil per SDM setiap kali tabel cicilan dirender
     renderRekapCicilanPerSdm();
-    // [BARU TASK 5] Segarkan grafik tren pembayaran per bulan
-    renderGrafikTrenCicilan();
+    // [BARU] Segarkan grafik tren pembayaran cicilan per bulan
+    renderTrenBayarCicilanChart();
 }
-// ===== [BARU TASK 5] RENDER PEMBAYARAN MITRA: FILTER, STATISTIK, TABEL, GRAFIK, EXPORT =====
-function populatePmTaDropdown() {
-    const sel = document.getElementById('filterPmTa');
-    if (!sel) return;
-    const taSet = new Set();
-    dataPembayaranMitra.forEach(p => { const ta = getTahunAjaran(p.tanggal); if (ta && ta !== 'Unknown') taSet.add(ta); });
-    let optionsHtml = '<option value="SEMUA">Semua Tahun Ajaran</option>';
-    Array.from(taSet).sort().forEach(ta => { optionsHtml += '<option value="' + escapeHtml(ta) + '">TA ' + escapeHtml(ta) + '</option>'; });
-    const cur = sel.value;
-    sel.innerHTML = optionsHtml;
-    sel.value = (cur === 'SEMUA' || taSet.has(cur)) ? cur : 'SEMUA';
-}
-
-function getPembayaranMitraFiltered() {
-    const fMitra = document.getElementById('filterPmMitra')?.value || 'SEMUA';
-    const fTa = document.getElementById('filterPmTa')?.value || 'SEMUA';
-    const kw = (document.getElementById('searchPm')?.value || '').trim().toLowerCase();
-    return dataPembayaranMitra.filter(p => {
-        if (fMitra !== 'SEMUA' && p.mitra !== fMitra) return false;
-        if (fTa !== 'SEMUA' && getTahunAjaran(p.tanggal) !== fTa) return false;
-        if (kw) {
-            const hay = (String(p.no_referensi || '') + ' ' + String(p.uraian || '') + ' ' + String(p.mitra || '') + ' ' + String(p.metode || '')).toLowerCase();
-            if (!hay.includes(kw) && !formatRupiah(p.jumlah).toLowerCase().includes(kw)) return false;
-        }
-        return true;
-    }).sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)) || String(b.id).localeCompare(String(a.id)));
-}
-
-function renderPembayaranMitra() {
-    const bodyEl = document.getElementById('pmTableBody');
-    if (!bodyEl) return;
-    populatePmTaDropdown();
-    const rows = getPembayaranMitraFiltered();
-    const totEdel = rows.filter(p => p.mitra === 'RS Edelweiss').reduce((s, p) => s + p.jumlah, 0);
-    const totPindad = rows.filter(p => p.mitra === 'Klinik Pindad').reduce((s, p) => s + p.jumlah, 0);
-    const totAll = rows.reduce((s, p) => s + p.jumlah, 0);
-    const statsEl = document.getElementById('pmStats');
-    if (statsEl) statsEl.innerHTML =
-        '<div class="col-md-3 col-6"><div class="card card-stat text-center p-2 h-100 border-success"><div class="small text-muted">Pembayaran RS Edelweiss</div><h5 class="fw-bold text-success mb-0">' + formatRupiah(totEdel) + '</h5></div></div>' +
-        '<div class="col-md-3 col-6"><div class="card card-stat text-center p-2 h-100 border-primary"><div class="small text-muted">Pembayaran Klinik Pindad</div><h5 class="fw-bold text-primary mb-0">' + formatRupiah(totPindad) + '</h5></div></div>' +
-        '<div class="col-md-3 col-6"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Total Keseluruhan</div><h5 class="fw-bold mb-0">' + formatRupiah(totAll) + '</h5></div></div>' +
-        '<div class="col-md-3 col-6"><div class="card card-stat text-center p-2 h-100"><div class="small text-muted">Jumlah Transaksi</div><h5 class="fw-bold mb-0">' + rows.length + '</h5></div></div>';
-    let html = '';
-    rows.forEach((p, idx) => {
-        html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(p.tanggal) + '</td><td><span class="badge ' + (p.mitra === 'RS Edelweiss' ? 'bg-success' : 'bg-primary') + '">' + escapeHtml(p.mitra) + '</span></td><td>' + escapeHtml(p.no_referensi || '-') + '</td><td>' + escapeHtml(p.uraian || '-') + '</td><td><span class="badge bg-secondary">' + escapeHtml(p.metode) + '</span></td><td class="fw-bold text-danger">' + formatRupiah(p.jumlah) + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="editPembayaranMitra(\'' + p.id + '\')" title="Edit Pembayaran"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger needs-write" onclick="hapusPembayaranMitra(\'' + p.id + '\')" title="Hapus Pembayaran"><i class="fa-solid fa-trash"></i></button></td></tr>';
-    });
-    bodyEl.innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Belum ada catatan pembayaran mitra</td></tr>';
-    const footEl = document.getElementById('pmTableFoot');
-    if (footEl) footEl.innerHTML = rows.length ? '<tr class="table-light"><td colspan="6" class="text-end fw-bold">TOTAL PEMBAYARAN (' + rows.length + ' transaksi)</td><td class="fw-bold text-danger">' + formatRupiah(totAll) + '</td><td></td></tr>' : '';
-    renderGrafikPembayaranMitra(rows);
-}
-
-function renderGrafikPembayaranMitra(rows) {
-    const canvas = document.getElementById('grafikPembayaranMitraChart');
-    if (!canvas) return;
-    const periode = document.getElementById('filterPmPeriode')?.value || '12';
-    const byMonth = {};
-    (rows || []).forEach(p => {
-        const key = String(p.tanggal || '').slice(0, 7);
-        if (!/^\d{4}-\d{2}$/.test(key)) return;
-        if (!byMonth[key]) byMonth[key] = { 'RS Edelweiss': 0, 'Klinik Pindad': 0 };
-        byMonth[key][p.mitra] = (byMonth[key][p.mitra] || 0) + (Number(p.jumlah) || 0);
-    });
-    let keys = Object.keys(byMonth).sort();
-    if (periode !== 'SEMUA') {
-        const n = parseInt(periode) || 12;
-        const now = new Date();
-        const windowKeys = [];
-        for (let i = n - 1; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); windowKeys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
-        keys = windowKeys;
-    }
-    const labels = keys.map(k => MONTHS_ID[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4));
-    const datasets = [
-        { label: 'RS Edelweiss', data: keys.map(k => (byMonth[k] ? byMonth[k]['RS Edelweiss'] : 0)), backgroundColor: '#198754', borderRadius: 4 },
-        { label: 'Klinik Pindad', data: keys.map(k => (byMonth[k] ? byMonth[k]['Klinik Pindad'] : 0)), backgroundColor: '#0d6efd', borderRadius: 4 }
-    ];
-    if (pmChartInstance) pmChartInstance.destroy();
-    pmChartInstance = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
-        data: { labels: labels.length ? labels : ['No Data'], datasets: labels.length ? datasets : [{ label: 'Pembayaran (Rp)', data: [0], backgroundColor: '#198754', borderRadius: 4 }] },
-        options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Rp ' + (v / 1000000) + ' Jt' } } } }
-    });
-}
-
-function exportPembayaranMitraExcel() {
-    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
-    const rows = getPembayaranMitraFiltered();
-    if (!rows.length) { showToast('Tidak ada data pembayaran mitra untuk diexport pada filter ini.', 'warning'); return; }
-    try {
-        const wb = XLSX.utils.book_new();
-        const totAll = rows.reduce((s, p) => s + p.jumlah, 0);
-        const data = rows.map((p, i) => ({ 'No': i + 1, 'TANGGAL': parseExcelDate(p.tanggal), 'TA': getTahunAjaran(p.tanggal), 'MITRA': p.mitra, 'NO INVOICE / REFERENSI': p.no_referensi || '', 'URAIAN': p.uraian || '', 'METODE': p.metode, 'JUMLAH PEMBAYARAN': p.jumlah }));
-        data.push({ 'No': '', 'TANGGAL': '', 'TA': '', 'MITRA': 'TOTAL (' + rows.length + ' transaksi)', 'NO INVOICE / REFERENSI': '', 'URAIAN': '', 'METODE': '', 'JUMLAH PEMBAYARAN': totAll });
-        const ws = XLSX.utils.json_to_sheet(data);
-        ws['!cols'] = [{ wch: 5 }, { wch: 13 }, { wch: 11 }, { wch: 16 }, { wch: 22 }, { wch: 34 }, { wch: 26 }, { wch: 18 }];
-        XLSX.utils.book_append_sheet(wb, ws, 'Riwayat Pembayaran');
-        // Sheet 2: rekap per mitra per tahun ajaran (dari seluruh data, tidak terpengaruh pencarian)
-        const rekapMap = {};
-        dataPembayaranMitra.forEach(p => {
-            const ta = getTahunAjaran(p.tanggal);
-            const k = p.mitra + '|' + ta;
-            if (!rekapMap[k]) rekapMap[k] = { mitra: p.mitra, ta, jml: 0, total: 0 };
-            rekapMap[k].jml += 1;
-            rekapMap[k].total += p.jumlah;
-        });
-        const rekapRows = Object.values(rekapMap).sort((a, b) => String(a.mitra).localeCompare(String(b.mitra), 'id') || String(a.ta).localeCompare(String(b.ta))).map(r => ({ 'MITRA': r.mitra, 'TAHUN AJARAN': r.ta, 'JML TRANSAKSI': r.jml, 'TOTAL PEMBAYARAN': r.total }));
-        rekapRows.push({ 'MITRA': 'TOTAL KESELURUHAN', 'TAHUN AJARAN': '', 'JML TRANSAKSI': dataPembayaranMitra.length, 'TOTAL PEMBAYARAN': dataPembayaranMitra.reduce((s, p) => s + p.jumlah, 0) });
-        const wsRekap = XLSX.utils.json_to_sheet(rekapRows);
-        wsRekap['!cols'] = [{ wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 20 }];
-        XLSX.utils.book_append_sheet(wb, wsRekap, 'Rekap per Mitra');
-        const fMitra = document.getElementById('filterPmMitra')?.value || 'SEMUA';
-        const fTa = document.getElementById('filterPmTa')?.value || 'SEMUA';
-        let namaFile = 'Riwayat_Pembayaran_Mitra';
-        if (fMitra !== 'SEMUA') namaFile += '_' + fMitra.replace(/\s+/g, '_');
-        if (fTa !== 'SEMUA') namaFile += '_TA_' + fTa.replace('/', '-');
-        namaFile += '.xlsx';
-        XLSX.writeFile(wb, namaFile);
-        showToast('Riwayat pembayaran mitra berhasil diexport: ' + namaFile);
-    } catch (err) {
-        console.error('exportPembayaranMitraExcel error:', err);
-        showToast('Gagal export Excel: ' + err.message, 'danger');
-    }
-}
-
-// ===== [BARU TASK 5] PEMBAYARAN MITRA (RS EDELWEISS & KLINIK PINDAD): DATA & CRUD =====
-// Prioritas: tabel Supabase 'pembayaran_mitra' bila tersedia; jika belum dibuat / gagal,
-// otomatis fallback ke localStorage (tanpa perubahan skema Supabase yang wajib).
-function normalizePembayaranMitra(m) {
-    return {
-        id: m.id,
-        tanggal: m.tanggal ? String(m.tanggal).slice(0, 10) : '',
-        mitra: m.mitra || 'RS Edelweiss',
-        no_referensi: m.no_referensi || '',
-        uraian: m.uraian || '',
-        jumlah: Number(m.jumlah) || 0,
-        metode: m.metode || 'TRANSFER BANK'
-    };
-}
-
-function persistPembayaranMitraLocal() {
-    try { localStorage.setItem(LS_MITRA_KEY, JSON.stringify(dataPembayaranMitra)); } catch (e) {}
-}
-
-async function loadPembayaranMitraData() {
-    try {
-        const rows = await fetchAll('pembayaran_mitra', [{ col: 'tanggal', asc: false }, { col: 'id' }]);
-        mitraCloudOk = true;
-        const mapped = rows.map(normalizePembayaranMitra);
-        try { localStorage.setItem(LS_MITRA_KEY, JSON.stringify(mapped)); } catch (e) {}
-        return mapped;
-    } catch (e) {
-        mitraCloudOk = false;
-        let local = [];
-        try { local = JSON.parse(localStorage.getItem(LS_MITRA_KEY) || '[]'); } catch (e2) { local = []; }
-        return local.map(normalizePembayaranMitra);
-    }
-}
-
-function openModalPembayaranMitra() {
-    if (!canWrite('catat pembayaran mitra')) return;
-    document.getElementById('formPembayaranMitra').reset();
-    document.getElementById('pmEditId').value = '';
-    document.getElementById('pmTanggal').value = new Date().toISOString().slice(0, 10);
-    document.getElementById('modalPembayaranMitraTitle').innerText = 'Catat Pembayaran Tagihan ke Mitra';
-    document.getElementById('btnPmSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Simpan Pembayaran';
-    showModal('modalPembayaranMitra');
-}
-
-function editPembayaranMitra(id) {
-    if (!canWrite('edit pembayaran mitra')) return;
-    const p = dataPembayaranMitra.find(x => String(x.id) === String(id));
-    if (!p) { showToast('Data pembayaran tidak ditemukan!', 'danger'); return; }
-    document.getElementById('formPembayaranMitra').reset();
-    document.getElementById('pmEditId').value = p.id;
-    document.getElementById('pmTanggal').value = p.tanggal;
-    document.getElementById('pmMitra').value = p.mitra;
-    document.getElementById('pmNoRef').value = p.no_referensi;
-    document.getElementById('pmMetode').value = p.metode;
-    document.getElementById('pmJumlah').value = p.jumlah;
-    document.getElementById('pmUraian').value = p.uraian;
-    document.getElementById('modalPembayaranMitraTitle').innerText = 'Edit Pembayaran Mitra';
-    document.getElementById('btnPmSubmit').innerHTML = '<i class="fa-solid fa-save me-1"></i> Update Pembayaran';
-    showModal('modalPembayaranMitra');
-}
-
-async function savePembayaranMitra(event) {
-    if (!canWrite('catat/edit pembayaran mitra')) return;
-    event.preventDefault();
-    const editId = document.getElementById('pmEditId').value || null;
-    const tanggal = document.getElementById('pmTanggal').value;
-    const mitra = document.getElementById('pmMitra').value;
-    const noRef = document.getElementById('pmNoRef').value.trim();
-    const jumlah = parseFloat(document.getElementById('pmJumlah').value) || 0;
-    const metode = document.getElementById('pmMetode').value;
-    const uraian = document.getElementById('pmUraian').value.trim();
-    if (!tanggal) { showToast('Tanggal pembayaran wajib diisi!', 'warning'); return; }
-    if (!mitra) { showToast('Pilih mitra terlebih dahulu!', 'warning'); return; }
-    if (jumlah <= 0) { showToast('Nominal pembayaran tidak valid!', 'warning'); return; }
-    const payload = { tanggal, mitra, no_referensi: noRef, jumlah, metode, uraian };
-    showLoading(true);
-    try {
-        if (editId) {
-            let updatedCloud = false;
-            if (mitraCloudOk) {
-                const { error } = await db.from('pembayaran_mitra').update(payload).eq('id', editId);
-                if (!error) updatedCloud = true; else mitraCloudOk = false;
-            }
-            if (!updatedCloud) {
-                const idx = dataPembayaranMitra.findIndex(x => String(x.id) === String(editId));
-                if (idx >= 0) dataPembayaranMitra[idx] = normalizePembayaranMitra({ ...dataPembayaranMitra[idx], ...payload });
-                persistPembayaranMitraLocal();
-                showToast('Pembayaran mitra berhasil diperbarui (tersimpan lokal).');
-            } else {
-                showToast('Pembayaran mitra berhasil diperbarui!');
-            }
-        } else {
-            let inserted = false;
-            if (mitraCloudOk) {
-                const { data, error } = await db.from('pembayaran_mitra').insert(payload).select();
-                if (!error && data && data.length) inserted = true; else mitraCloudOk = false;
-            }
-            if (!inserted) {
-                dataPembayaranMitra.unshift(normalizePembayaranMitra({ id: 'PM' + Date.now(), ...payload }));
-                dataPembayaranMitra.sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)));
-                persistPembayaranMitraLocal();
-                showToast('Pembayaran mitra berhasil dicatat (tersimpan lokal di browser ini).');
-            } else {
-                showToast('Pembayaran mitra berhasil dicatat!');
-            }
-        }
-        hideModal('modalPembayaranMitra');
-        await loadInitialData();
-    } catch (err) {
-        showToast('Error: ' + err.message, 'danger');
-    }
-    showLoading(false);
-}
-
-async function hapusPembayaranMitra(id) {
-    if (!canWrite('hapus pembayaran mitra')) return;
-    const p = dataPembayaranMitra.find(x => String(x.id) === String(id));
-    if (!p) return;
-    if (!confirm('Yakin ingin MENGHAPUS catatan pembayaran ini?\n\nMitra: ' + p.mitra + '\nTanggal: ' + parseExcelDate(p.tanggal) + '\nJumlah: ' + formatRupiah(p.jumlah))) return;
-    showLoading(true);
-    try {
-        let deletedCloud = false;
-        if (mitraCloudOk) {
-            const { error } = await db.from('pembayaran_mitra').delete().eq('id', id);
-            if (!error) deletedCloud = true; else mitraCloudOk = false;
-        }
-        if (!deletedCloud) {
-            dataPembayaranMitra = dataPembayaranMitra.filter(x => String(x.id) !== String(id));
-            persistPembayaranMitraLocal();
-        }
-        showToast('Catatan pembayaran mitra berhasil dihapus.');
-        await loadInitialData();
-    } catch (err) {
-        showToast('Error: ' + err.message, 'danger');
-    }
-    showLoading(false);
-}
-
-// ===== [BARU TASK 5] EXPORT TABEL UTAMA CICILAN KE EXCEL =====
-// Export seluruh kolom tabel utama (mengikuti kata kunci pencarian) + sheet riwayat pembayaran
-function exportCicilanUtamaExcel() {
-    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
-    const kw = (document.getElementById('searchCicilan')?.value || '').trim().toLowerCase();
-    const list = dataCicilan
-        .filter(c => !kw || String(c.pegawai || '').toLowerCase().includes(kw) || String(c.status || '').toLowerCase().includes(kw))
-        .sort((a, b) => String(a.pegawai).localeCompare(String(b.pegawai), 'id'));
-    if (!list.length) { showToast('Tidak ada data cicilan untuk diexport.', 'warning'); return; }
-    try {
-        const wb = XLSX.utils.book_new();
-        const totK = list.reduce((s, c) => s + (Number(c.total_kewajiban) || 0), 0);
-        const totD = list.reduce((s, c) => s + Math.max(0, getTotalDibayarCicilan(c)), 0);
-        const totS = list.reduce((s, c) => s + (Number(c.sisa_kewajiban) || 0), 0);
-        const totP = list.reduce((s, c) => s + (c.riwayat ? c.riwayat.length : 0), 0);
-        const rows = list.map((c, i) => ({ 'No': i + 1, 'NAMA PEGAWAI': c.pegawai, 'TANGGAL MULAI': parseExcelDate(c.tanggal), 'TA': getTahunAjaran(c.tanggal), 'TOTAL KEWAJIBAN': Number(c.total_kewajiban) || 0, 'SUDAH DICICIL': Math.max(0, getTotalDibayarCicilan(c)), 'SISA TAGIHAN': Number(c.sisa_kewajiban) || 0, 'SKEMA': c.skema, 'METODE': c.metode, 'STATUS': c.status, 'JML POTONGAN': (c.riwayat ? c.riwayat.length : 0), 'KETERANGAN': c.keterangan || '' }));
-        rows.push({ 'No': '', 'NAMA PEGAWAI': 'TOTAL (' + list.length + ' kesepakatan)', 'TANGGAL MULAI': '', 'TA': '', 'TOTAL KEWAJIBAN': totK, 'SUDAH DICICIL': totD, 'SISA TAGIHAN': totS, 'SKEMA': '', 'METODE': '', 'STATUS': '', 'JML POTONGAN': totP, 'KETERANGAN': kw ? ('filter pencarian: ' + kw) : '' });
-        const ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{ wch: 5 }, { wch: 26 }, { wch: 14 }, { wch: 11 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 32 }];
-        XLSX.utils.book_append_sheet(wb, ws, 'Data Cicilan');
-        // Sheet 2: seluruh riwayat pembayaran dari kesepakatan yang diexport
-        const rList = [];
-        list.forEach(c => (c.riwayat || []).forEach(r => rList.push({ pegawai: c.pegawai, tanggal: r.tanggal, jumlah: Number(r.jumlah) || 0, metode: r.metode, status: c.status })));
-        if (rList.length) {
-            rList.sort((a, b) => String(a.pegawai).localeCompare(String(b.pegawai), 'id') || String(a.tanggal).localeCompare(String(b.tanggal)));
-            const rowsR = rList.map((r, i) => ({ 'No': i + 1, 'NAMA PEGAWAI': r.pegawai, 'TANGGAL BAYAR': parseExcelDate(r.tanggal), 'JUMLAH': r.jumlah, 'METODE': r.metode, 'STATUS CICILAN': r.status }));
-            rowsR.push({ 'No': '', 'NAMA PEGAWAI': 'TOTAL', 'TANGGAL BAYAR': '', 'JUMLAH': rList.reduce((s, r) => s + r.jumlah, 0), 'METODE': '', 'STATUS CICILAN': '' });
-            const wsR = XLSX.utils.json_to_sheet(rowsR);
-            wsR['!cols'] = [{ wch: 5 }, { wch: 26 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 14 }];
-            XLSX.utils.book_append_sheet(wb, wsR, 'Riwayat Pembayaran');
-        }
-        const namaFile = 'Data_Cicilan_Pegawai' + (kw ? '_Filter' : '') + '.xlsx';
-        XLSX.writeFile(wb, namaFile);
-        showToast('Tabel cicilan utama berhasil diexport: ' + namaFile + ' (' + list.length + ' kesepakatan)');
-    } catch (err) {
-        console.error('exportCicilanUtamaExcel error:', err);
-        showToast('Gagal export Excel: ' + err.message, 'danger');
-    }
-}
-
-// ===== [BARU TASK 5] GRAFIK TREN PEMBAYARAN CICILAN PER BULAN =====
-// Agregasi seluruh potongan/pembayaran cicilan (dari riwayat) per bulan per metode
-function agregasiPembayaranPerBulan() {
-    const map = {};
-    dataCicilan.forEach(c => {
-        if (c.status === 'DIBATALKAN') return;
-        (c.riwayat || []).forEach(r => {
-            const key = String(r.tanggal || '').slice(0, 7);
-            if (!/^\d{4}-\d{2}$/.test(key)) return;
-            if (!map[key]) map[key] = { 'POTONG GAJI': 0, 'TUNAI': 0, 'KEBIJAKAN YAYASAN': 0, 'LAINNYA': 0, count: 0 };
-            const j = Number(r.jumlah) || 0;
-            let m = String(r.metode || '').toUpperCase().trim();
-            if (!(m in map[key])) m = 'LAINNYA';
-            map[key][m] += j;
-            map[key].count += 1;
-        });
-    });
-    return map;
-}
-
-function renderGrafikTrenCicilan() {
-    const canvas = document.getElementById('grafikTrenCicilanChart');
-    if (!canvas) return;
-    const periode = document.getElementById('filterTrenCicilanPeriode')?.value || '12';
-    const byMonth = agregasiPembayaranPerBulan();
-    let keys = Object.keys(byMonth).sort();
-    if (periode !== 'SEMUA') {
-        const n = parseInt(periode) || 12;
-        const now = new Date();
-        const windowKeys = [];
-        for (let i = n - 1; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); windowKeys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
-        keys = windowKeys; // bulan tanpa transaksi tetap tampil dengan nilai 0 agar tren terlihat
-    }
-    const labels = keys.map(k => MONTHS_ID[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4));
-    const dsDef = [['POTONG GAJI', '#198754'], ['TUNAI', '#0d6efd'], ['KEBIJAKAN YAYASAN', '#0dcaf0'], ['LAINNYA', '#adb5bd']];
-    const datasets = dsDef.map(def => ({ type: 'bar', label: def[0], stack: 'bayar', data: keys.map(k => (byMonth[k] ? byMonth[k][def[0]] : 0)), backgroundColor: def[1], borderRadius: 4 }));
-    let cum = 0;
-    const cumData = keys.map(k => { if (byMonth[k]) cum += byMonth[k]['POTONG GAJI'] + byMonth[k]['TUNAI'] + byMonth[k]['KEBIJAKAN YAYASAN'] + byMonth[k]['LAINNYA']; return cum; });
-    datasets.push({ type: 'line', label: 'Kumulatif', data: cumData, borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.15)', yAxisID: 'y1', tension: 0.3, pointRadius: 3, borderWidth: 2, fill: false });
-    const totAll = cumData.length ? cumData[cumData.length - 1] : 0;
-    const totTx = keys.reduce((s, k) => s + (byMonth[k] ? byMonth[k].count : 0), 0);
-    const infoEl = document.getElementById('trenCicilanInfo');
-    if (infoEl) infoEl.innerHTML = 'Total pembayaran cicilan periode ini: <strong class="text-success">' + formatRupiah(totAll) + '</strong> dari <strong>' + totTx + '</strong> transaksi potongan. Batang = pembayaran per bulan per metode, garis kuning = akumulasi.';
-    if (trenCicilanChartInstance) trenCicilanChartInstance.destroy();
-    trenCicilanChartInstance = new Chart(canvas.getContext('2d'), {
-        data: { labels: labels.length ? labels : ['No Data'], datasets: labels.length ? datasets : [{ type: 'bar', label: 'Pembayaran (Rp)', data: [0], backgroundColor: '#198754', borderRadius: 4 }] },
-        options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => 'Rp ' + (v / 1000000) + ' Jt' } }, y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => 'Rp ' + (v / 1000000) + ' Jt' } } } }
-    });
-}
-
 function changeCicilanPage(page) { currentPageCicilan = page; renderCicilanTable(); }
 async function showCicilanDetail(cicilanId) { 
     let c = dataCicilan.find(x => x.id === cicilanId); 
@@ -3316,7 +3685,7 @@ async function showCicilanDetail(cicilanId) {
     
     let html = ''; 
     if (c.riwayat && c.riwayat.length > 0) {
-        c.riwayat.forEach((r, idx) => { 
+        urutkanRiwayatTanggalAsc(c.riwayat).forEach((r, idx) => { 
             html += '<tr><td>' + (idx + 1) + '</td><td>' + parseExcelDate(r.tanggal) + '</td><td class="fw-bold text-success">' + formatRupiah(r.jumlah) + '</td><td>' + r.metode + '</td><td class="text-center text-nowrap"><button class="btn btn-sm btn-warning needs-write" onclick="editPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')" title="Edit Potongan / Pembayaran"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-outline-danger needs-write" onclick="hapusPembayaranCicilan(\'' + c.id + '\', \'' + r.id + '\')" title="Hapus Potongan / Pembayaran"><i class="fa-solid fa-trash"></i></button></td></tr>'; 
         }); 
     } else {
@@ -3559,7 +3928,7 @@ function changeSdmPage(page) { currentPageSdm = page; renderSdmTable(); }
 function exportFullExcel() { 
     if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap.', 'danger'); return; } 
     let wb = XLSX.utils.book_new(); 
-    let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); 
+    let filteredData = getFilteredData().map((item, idx) => ({ No: idx + 1, Pegawai: item.pegawai, Bidang: item.bidang, Pasien: item.pasien, Poli: item.poli, RujukanKe: item.pihak || '', Tanggal: parseExcelDate(item.tanggal), TahunAjaran: getTahunAjaran(item.tanggal), Invoice: item.no_invoice, TagihanNF: item.tagihan, Diskon: item.diskon || 0, SubTotal: item.subtotal, CoverYayasan: item.cover_yayasan || 0, BiayaPribadi: item.biaya_pribadi || 0 })); 
     let wsDatabase = XLSX.utils.json_to_sheet(filteredData); 
     XLSX.utils.book_append_sheet(wb, wsDatabase, "Database Rujukan"); 
     let sdmData = (window.cachedSdmData || []).map((item, idx) => ({ No: idx + 1, Nama: item.nama, Bidang: item.bidang, Kunjungan: item.kunjungan, TagihanNF: item.tagihan, SubTotal: item.subtotal, CoverYayasan: item.coverYayasan, BiayaPribadi: item.biayaPribadi, TotalHutang: getHutangPegawai(item.nama), SisaHutang: getSisaHutangPegawai(item.nama) })); 
@@ -3608,7 +3977,7 @@ function setupRealtimeSync() {
         supabaseChannels.forEach(ch => ch.unsubscribe());
         supabaseChannels = [];
         
-        const tables = ['master_bidang', 'master_departemen', 'master_pegawai', 'database_rujukan', 'plafon_kesehatan', 'cicilan', 'cicilan_riwayat'];
+        const tables = ['master_bidang', 'master_departemen', 'master_pegawai', 'database_rujukan', 'plafon_kesehatan', 'cicilan', 'cicilan_riwayat', 'tagihan_mitra', 'tagihan_mitra_riwayat'];
         tables.forEach(table => {
             const channel = db.channel(`realtime-${table}-${Date.now()}`)
                 .on('postgres_changes', { event: '*', schema: 'public', table: table }, (payload) => {
@@ -3677,6 +4046,7 @@ async function migrateLocalToSupabase() {
                 bidang: normalizeName(r.bidang), 
                 pasien: normalizeName(r.pasien), 
                 poli: normalizeName(r.poli),
+                pihak: r.pihak ? String(r.pihak).trim().toUpperCase() : null,
                 tanggal: r.tanggal, 
                 tagihan: Number(r.tagihan) || 0, 
                 diskon: Number(r.diskon) || 0, 
@@ -3734,6 +4104,177 @@ async function migrateLocalToSupabase() {
     showLoading(false);
 }
 
+// ===========================================================================
+// [BARU - TASK 5a] EXPORT TABEL UTAMA CICILAN (mengikuti kata kunci pencarian)
+// ===========================================================================
+function exportCicilanTableExcel() {
+    if (typeof XLSX === 'undefined') { showToast('Library Excel (XLSX) belum siap. Cek koneksi internet.', 'danger'); return; }
+    try {
+        let searchKeyword = (document.getElementById('searchCicilan')?.value || '').toLowerCase();
+        let rows0 = dataCicilan.filter(c => String(c.pegawai || '').toLowerCase().includes(searchKeyword) || String(c.status || '').toLowerCase().includes(searchKeyword))
+            .sort((a, b) => String(a.pegawai).localeCompare(String(b.pegawai), 'id') || String(a.tanggal || '').localeCompare(String(b.tanggal || '')));
+        if (!rows0.length) { showToast('Tidak ada data cicilan untuk diexport.', 'warning'); return; }
+        const wb = XLSX.utils.book_new();
+        const totKewajiban = rows0.reduce((s, c) => s + (Number(c.total_kewajiban) || 0), 0);
+        const totDibayar = rows0.reduce((s, c) => s + Math.max(0, getTotalDibayarCicilan(c)), 0);
+        const totSisa = rows0.reduce((s, c) => s + (Number(c.sisa_kewajiban) || 0), 0);
+        const rows = rows0.map((c, i) => ({ 'No': i + 1, 'NAMA PEGAWAI': c.pegawai, 'TANGGAL MULAI': parseExcelDate(c.tanggal), 'TA': getTahunAjaran(c.tanggal), 'TOTAL KEWAJIBAN': Number(c.total_kewajiban) || 0, 'SUDAH DICICIL': Math.max(0, getTotalDibayarCicilan(c)), 'SISA TAGIHAN': Number(c.sisa_kewajiban) || 0, 'SKEMA': c.skema === 'BULANAN' ? 'Bulanan (Fleksibel)' : 'Langsung Lunas', 'TENOR (BLN)': Number(c.tenor) || 1, 'METODE': c.metode, 'STATUS': c.status, 'JML POTONGAN': (c.riwayat ? c.riwayat.length : 0), 'KETERANGAN': c.keterangan || '' }));
+        rows.push({ 'No': '', 'NAMA PEGAWAI': 'TOTAL (' + rows0.length + ' kesepakatan)', 'TANGGAL MULAI': '', 'TA': '', 'TOTAL KEWAJIBAN': totKewajiban, 'SUDAH DICICIL': totDibayar, 'SISA TAGIHAN': totSisa, 'SKEMA': '', 'TENOR (BLN)': '', 'METODE': '', 'STATUS': '', 'JML POTONGAN': rows0.reduce((s, c) => s + (c.riwayat ? c.riwayat.length : 0), 0), 'KETERANGAN': '' });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 11 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Daftar Cicilan');
+        // Sheet 2: seluruh potongan/pembayaran dari kesepakatan yang diexport
+        const flat = [];
+        rows0.forEach(c => { (c.riwayat || []).forEach(r => flat.push({ peg: c.pegawai, tgl: r.tanggal, jml: Number(r.jumlah) || 0, met: r.metode, st: c.status })); });
+        if (flat.length) {
+            flat.sort((a, b) => String(a.tgl || '').localeCompare(String(b.tgl || '')));
+            const rowsB = flat.map((r, i) => ({ 'No': i + 1, 'NAMA PEGAWAI': r.peg, 'TANGGAL BAYAR': parseExcelDate(r.tgl), 'NOMINAL': r.jml, 'METODE': r.met, 'STATUS CICILAN': r.st }));
+            rowsB.push({ 'No': '', 'NAMA PEGAWAI': 'TOTAL', 'TANGGAL BAYAR': '', 'NOMINAL': flat.reduce((s, r) => s + r.jml, 0), 'METODE': '', 'STATUS CICILAN': '' });
+            const wsB = XLSX.utils.json_to_sheet(rowsB);
+            wsB['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 14 }];
+            XLSX.utils.book_append_sheet(wb, wsB, 'Riwayat Potongan');
+        }
+        XLSX.writeFile(wb, 'Daftar_Cicilan_Pegawai.xlsx');
+        showToast('Tabel cicilan berhasil diexport: Daftar_Cicilan_Pegawai.xlsx (' + rows0.length + ' kesepakatan)');
+    } catch (err) { console.error('exportCicilanTableExcel error:', err); showToast('Gagal export Excel: ' + err.message, 'danger'); }
+}
+
+// ===========================================================================
+// [BARU - TASK 5b] GRAFIK TREN PEMBAYARAN PER BULAN (cicilan & tagihan mitra)
+// ===========================================================================
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function monthKey(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return null; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function monthLabel(key) { const parts = key.split('-'); return BULAN_SINGKAT[parseInt(parts[1]) - 1] + ' ' + parts[0]; }
+function buildRentangBulan(keys) {
+    // Urutkan & isi bulan kosong di antara bulan awal-akhir agar tren berkesinambungan
+    const sorted = Array.from(new Set(keys.filter(Boolean))).sort();
+    if (!sorted.length) return [];
+    const out = [];
+    let y = parseInt(sorted[0].slice(0, 4)), m = parseInt(sorted[0].slice(5, 7));
+    const ey = parseInt(sorted[sorted.length - 1].slice(0, 4)), em = parseInt(sorted[sorted.length - 1].slice(5, 7));
+    while (y < ey || (y === ey && m <= em)) {
+        out.push(y + '-' + String(m).padStart(2, '0'));
+        m++; if (m > 12) { m = 1; y++; }
+        if (out.length > 60) break; // pengaman
+    }
+    return out;
+}
+function jutaFmt(v) { return 'Rp ' + (v / 1000000) + ' Jt'; }
+
+// ===== [BARU] FILTER TAHUN AJARAN UNTUK GRAFIK TREN PEMBAYARAN =====
+// TA diambil dari TANGGAL PEMBAYARAN (periode Juli-Juni, sama dengan rekap).
+// Bila TA tertentu dipilih, sumbu-X grafik = tepat 12 bulan TA tersebut
+// (Juli s.d. Juni), termasuk bulan yang tidak ada pembayarannya.
+function rentangBulanTahunAjaran(ta) {
+    const m = String(ta || '').match(/^(\d{4})\/(\d{4})$/);
+    if (!m) return null;
+    const out = [];
+    let yy = parseInt(m[1]), mm = 7; // mulai Juli
+    for (let i = 0; i < 12; i++) {
+        out.push(yy + '-' + String(mm).padStart(2, '0'));
+        mm++; if (mm > 12) { mm = 1; yy++; }
+    }
+    return out; // contoh TA 2025/2026 -> ['2025-07' ... '2026-06']
+}
+// Isi dropdown filter TA grafik (pilihan tetap segar, pilihan user dipertahankan)
+function populateTrenTaDropdown(selId, taSet) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    let optionsHtml = '<option value="SEMUA">Semua Tahun Ajaran</option>';
+    Array.from(taSet).sort().forEach(ta => { optionsHtml += '<option value="' + escapeHtml(ta) + '">TA ' + escapeHtml(ta) + '</option>'; });
+    const cur = sel.value;
+    sel.innerHTML = optionsHtml;
+    sel.value = (cur === 'SEMUA' || taSet.has(cur)) ? cur : 'SEMUA';
+}
+
+// Grafik 1: tren potongan cicilan SDM per bulan (bar) + akumulasi (garis)
+function renderTrenBayarCicilanChart() {
+    const ctx = document.getElementById('trenBayarCicilanChart');
+    if (!ctx || typeof Chart === 'undefined') return;
+    const taSel = document.getElementById('filterTrenCicilanTa');
+    const taFilter = (taSel && taSel.value !== 'SEMUA') ? taSel.value : null; // null = semua TA
+    const taSet = new Set();
+    const map = {};
+    dataCicilan.forEach(c => {
+        if (c.status === 'DIBATALKAN') return; // cicilan dibatalkan dikecualikan
+        (c.riwayat || []).forEach(r => {
+            const k = monthKey(r.tanggal);
+            if (!k) return;
+            const ta = getTahunAjaran(r.tanggal); // TA dari tanggal pembayaran (Jul-Jun)
+            if (ta && ta !== 'Unknown') taSet.add(ta);
+            if (taFilter && ta !== taFilter) return; // filter per tahun ajaran
+            map[k] = (map[k] || 0) + (Number(r.jumlah) || 0);
+        });
+    });
+    populateTrenTaDropdown('filterTrenCicilanTa', taSet);
+    const keys = (taFilter && rentangBulanTahunAjaran(taFilter)) || buildRentangBulan(Object.keys(map));
+    const totals = keys.map(k => map[k] || 0);
+    let cum = 0; const cumul = totals.map(v => (cum += v));
+    if (trenBayarCicilanInstance) trenBayarCicilanInstance.destroy();
+    trenBayarCicilanInstance = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: keys.map(monthLabel),
+            datasets: [
+                { type: 'bar', label: 'Potongan per Bulan', data: totals, backgroundColor: 'rgba(25, 135, 84, 0.75)', borderRadius: 4, order: 2 },
+                { type: 'line', label: 'Akumulasi', data: cumul, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.12)', fill: true, tension: 0.3, pointRadius: 2, yAxisID: 'y1', order: 1 }
+            ]
+        },
+        options: {
+            responsive: true, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + formatRupiah(c.parsed.y) } } },
+            scales: {
+                x: { ticks: { maxRotation: 60, autoSkip: true, maxTicksLimit: 18 } },
+                y: { beginAtZero: true, ticks: { callback: jutaFmt } },
+                y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: jutaFmt } }
+            }
+        }
+    });
+}
+
+// Grafik 2: tren pembayaran tagihan mitra per bulan (dipecah per pihak)
+function renderTrenBayarMitraChart() {
+    const ctx = document.getElementById('trenBayarMitraChart');
+    if (!ctx || typeof Chart === 'undefined') return;
+    const taSel = document.getElementById('filterTrenMitraTa');
+    const taFilter = (taSel && taSel.value !== 'SEMUA') ? taSel.value : null; // null = semua TA
+    const taSet = new Set();
+    const map = {};
+    dataMitraTagihan.forEach(t => {
+        (t.riwayat || []).forEach(r => {
+            const k = monthKey(r.tanggal);
+            if (!k) return;
+            const ta = getTahunAjaran(r.tanggal); // TA dari tanggal pembayaran (Jul-Jun)
+            if (ta && ta !== 'Unknown') taSet.add(ta);
+            if (taFilter && ta !== taFilter) return; // filter per tahun ajaran
+            map[k] = map[k] || { 'RS EDELWEIS': 0, 'KLINIK PINDAD': 0 };
+            if (map[k][t.pihak] === undefined) return; // pihak lain diabaikan pada grafik
+            map[k][t.pihak] += (Number(r.jumlah) || 0);
+        });
+    });
+    populateTrenTaDropdown('filterTrenMitraTa', taSet);
+    const keys = (taFilter && rentangBulanTahunAjaran(taFilter)) || buildRentangBulan(Object.keys(map));
+    if (trenBayarMitraInstance) trenBayarMitraInstance.destroy();
+    trenBayarMitraInstance = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: keys.map(monthLabel),
+            datasets: [
+                { label: 'RS Edelweiss', data: keys.map(k => (map[k] || {})['RS EDELWEIS'] || 0), backgroundColor: 'rgba(25, 135, 84, 0.8)', borderRadius: 3 },
+                { label: 'Klinik Pindad', data: keys.map(k => (map[k] || {})['KLINIK PINDAD'] || 0), backgroundColor: 'rgba(13, 110, 253, 0.8)', borderRadius: 3 }
+            ]
+        },
+        options: {
+            responsive: true, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + formatRupiah(c.parsed.y) } } },
+            scales: {
+                x: { ticks: { maxRotation: 60, autoSkip: true, maxTicksLimit: 18 } },
+                y: { beginAtZero: true, ticks: { callback: jutaFmt } }
+            }
+        }
+    });
+}
+
 // ===== [FIX] INITIAL DATA LOADER - Tambahkan normalisasi NIP =====
 let loadSeq = 0;
 async function loadInitialData() {
@@ -3742,7 +4283,7 @@ async function loadInitialData() {
     const mySeq = ++loadSeq;
     try {
         updateCloudStatus('syncing', 'Memuat data...');
-        const [bidang, dept, pegawai, rujukan, plafon, cicilan, riwayat, mitraPay] = await Promise.all([
+        const [bidang, dept, pegawai, rujukan, plafon, cicilan, riwayat, mitraTagihan, mitraRiwayat] = await Promise.all([
             fetchAll('master_bidang'),
             fetchAll('master_departemen'),
             fetchAll('master_pegawai', [{ col: 'nip' }]),
@@ -3750,7 +4291,8 @@ async function loadInitialData() {
             fetchAll('plafon_kesehatan', [{ col: 'pegawai_nama' }, { col: 'tahun_ajaran' }]),
             fetchAll('cicilan', [{ col: 'id' }]),
             fetchAll('cicilan_riwayat', [{ col: 'id' }]),
-            loadPembayaranMitraData()
+            fetchAllSafe('tagihan_mitra', [{ col: 'tanggal_tagihan', asc: false }, { col: 'id' }]),
+            fetchAllSafe('tagihan_mitra_riwayat', [{ col: 'id' }])
         ]);
         if (mySeq !== loadSeq) return; // ada load yang lebih baru
 
@@ -3770,6 +4312,7 @@ async function loadInitialData() {
             bidang: normalizeName(r.bidang),
             pasien: normalizeName(r.pasien),
             poli: normalizeName(r.poli),
+            pihak: r.pihak ? String(r.pihak).trim().toUpperCase() : '',
             tagihan: Number(r.tagihan) || 0,
             subtotal: Number(r.subtotal) || 0,
             cover_yayasan: Number(r.cover_yayasan) || 0,
@@ -3796,7 +4339,20 @@ async function loadInitialData() {
             let cic = dataCicilan.find(c => c.id === r.cicilan_id);
             if (cic) cic.riwayat.push({ id: r.id, tanggal: r.tanggal, jumlah: r.jumlah, metode: r.metode });
         });
-        dataPembayaranMitra = mitraPay || [];
+
+        // [BARU] Tagihan Mitra (RS Edelweiss & Klinik Pindad) — tabel baru, aman bila belum dibuat
+        dataMitraTagihan = mitraTagihan.map(t => ({ ...t,
+            pihak: String(t.pihak || '').toUpperCase().trim(),
+            total_tagihan: Number(t.total_tagihan) || 0,
+            sudah_dibayar: Number(t.sudah_dibayar) || 0,
+            sisa_tagihan: Number(t.sisa_tagihan) || 0,
+            riwayat: []
+        }));
+        mitraRiwayat.forEach(r => {
+            let t = dataMitraTagihan.find(x => x.id === r.tagihan_id);
+            if (t) t.riwayat.push({ id: r.id, tanggal: r.tanggal, jumlah: r.jumlah, metode: r.metode, keterangan: r.keterangan });
+        });
+        warnMitraTableMissing();
 
         await updateAllSystems();
         updateCloudStatus('online', 'Tersinkron Cloud');
@@ -3818,4 +4374,4 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-</html>
+</html>
